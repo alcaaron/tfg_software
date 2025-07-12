@@ -24,52 +24,70 @@
     tools:context=".BleOperationsActivity">
 
     <LinearLayout
-        android:id="@+id/relay_buttons_container"
-        android:layout_width="wrap_content"
+        android:id="@+id/target_address_container"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
         android:orientation="horizontal"
-        android:textSize="24sp"
+        android:gravity="center_vertical"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.497"
         app:layout_constraintStart_toStartOf="parent"
-        tools:layout_editor_absoluteY="108dp"
+        app:layout_constraintTop_toTopOf="parent"
         >
 
-        <Button
-            android:id="@+id/relay_on_button"
+        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginEnd="8dp"
-            android:minWidth="120dip"
-            android:minHeight="56dip"
-            android:text="ON"
-            android:textAppearance="@style/TextAppearance.AppCompat.Large"
+            android:text="Target:"
+            android:textSize="16sp"
             />
 
-        <Button
-            android:id="@+id/relay_off_button"
+        <Spinner
+            android:id="@+id/target_address_spinner"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:minWidth="120dip"
-            android:minHeight="56dip"
-            android:text="OFF"
-            android:textAppearance="@style/TextAppearance.AppCompat.Large"
+            android:minWidth="80dp"
             />
 
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/relay_value_label"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:id="@+id/message_input_container"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="48dp"
-        android:text="Relay Value: "
-        android:textSize="34sp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/relay_buttons_container"
-        />
+        app:layout_constraintTop_toBottomOf="@id/target_address_container"
+        >
+
+        <EditText
+            android:id="@+id/message_edit_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:hint="Enter message..."
+            android:inputType="text"
+            android:maxLines="3"
+            />
+
+        <Button
+            android:id="@+id/send_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Send"
+            android:textAppearance="@style/TextAppearance.AppCompat.Medium"
+            />
+
+    </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -79,7 +97,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/relay_value_label"
+        app:layout_constraintTop_toBottomOf="@+id/message_input_container"
         >
 
         <!--androidx.recyclerview.widget.RecyclerView
@@ -97,7 +115,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
             android:layout_marginTop="16dp"
-            android:text="Log"
+            android:text="Message History"
             android:textSize="34sp"
             android:textStyle="bold"
             />
@@ -120,6 +138,16 @@
                 />
 
         </ScrollView>
+
+        <Button
+            android:id="@+id/clear_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_margin="8dp"
+            android:text="Clear Messages"
+            android:textAppearance="@style/TextAppearance.AppCompat.Small"
+            />
 
     </LinearLayout>
 

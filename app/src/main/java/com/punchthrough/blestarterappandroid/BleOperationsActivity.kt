@@ -27,7 +27,9 @@ import android.view.MenuItem
 import android.view.View
 import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
+import android.widget.ArrayAdapter
 import android.widget.EditText
+import android.widget.Spinner
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -48,8 +50,10 @@ import java.util.Locale
 import java.util.UUID
 import android.util.Log
 
-private val RELAY_CONTROL_CHARACTERISTIC_UUID = UUID.fromString("f000c0c1-0451-4000-b000-000000000000")
-private val RELAY_NOTIFICATION_CHARACTERISTIC_UUID = UUID.fromString("f000c0c2-0451-4000-b000-000000000000")
+// BLE Module UUIDs - separate characteristics for write and notifications
+private val SERVICE_UUID = UUID.fromString("4880c12c-fdcb-4077-8920-a450d7f9b907")
+private val MESSAGE_WRITE_CHARACTERISTIC_UUID = UUID.fromString("f000c0c1-0451-4000-b000-000000000000")
+private val MESSAGE_NOTIFICATION_CHARACTERISTIC_UUID = UUID.fromString("f000c0c2-0451-4000-b000-000000000000")
 
 class BleOperationsActivity : AppCompatActivity() {
 
@@ -97,41 +101,116 @@ class BleOperationsActivity : AppCompatActivity() {
             title = getString(R.string.ble_playground)
         }
 
-        binding.relayOnButton.setOnClickListener {
-            log("Sending RELAY_ON")
-            writeRelayValue("RELAY_ON")
-        }
-
-        binding.relayOffButton.setOnClickListener {
-            log("Sending RELAY_OFF")
-            writeRelayValue("RELAY_OFF")
-        }
-
-        enableRelayNotifications()
+        setupTargetAddressSpinner()
+        setupSendButton()
+        setupClearButton()
+        enableMessageNotifications()
     }
 
-    private fun writeRelayValue(value: String) {
-        val characteristic = characteristics.find { it.uuid == RELAY_CONTROL_CHARACTERISTIC_UUID }
+    private fun setupTargetAddressSpinner() {
+        val adapter = ArrayAdapter.createFromResource(
+            this,
+            R.array.target_addresses,
+            android.R.layout.simple_spinner_item
+        )
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        binding.targetAddressSpinner.adapter = adapter
+    }
+
+    private fun setupSendButton() {
+        binding.sendButton.setOnClickListener {
+            sendMessage()
+        }
+    }
+
+    private fun setupClearButton() {
+        binding.clearButton.setOnClickListener {
+            clearConversation()
+        }
+    }
+
+    private fun clearConversation() {
+        runOnUiThread {
+            binding.logTextView.text = ""
+        }
+    }
+
+    private fun parseReceivedMessage(receivedData: String): String? {
+        // Parse format: +RCV=1,5,HELLO,0,11
+        // We want to extract the message part (HELLO in this example)
+        try {
+            if (receivedData.startsWith("+RCV=")) {
+                val parts = receivedData.substring(5).split(",") // Remove "+RCV=" and split by comma
+                if (parts.size >= 3) {
+                    // parts[0] = sender address (1)
+                    // parts[1] = message length (5)
+                    // parts[2] = actual message (HELLO)
+                    // parts[3] and beyond = additional parameters
+                    return parts[2]
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("BleOperations", "Error parsing received message: $receivedData", e)
+        }
+        return null
+    }
+
+    private fun sendMessage() {
+        val message = binding.messageEditText.text.toString().trim()
+        if (message.isEmpty()) {
+            return
+        }
+
+        val targetAddress = binding.targetAddressSpinner.selectedItem.toString()
+        val messageLength = message.length
+        val formattedMessage = "AT+SEND=$targetAddress,$messageLength,$message\r\n"
+        
+        // Show only the actual message in the conversation
+        logConversation("You", message)
+        
+        writeMessageValue(formattedMessage)
+        
+        // Clear the input field after sending
+        binding.messageEditText.text.clear()
+        hideKeyboard()
+    }
+
+    private fun writeMessageValue(value: String) {
+        val characteristic = characteristics.find { it.uuid == MESSAGE_WRITE_CHARACTERISTIC_UUID }
         if (characteristic != null) {
-            Log.d("BleOperations", "Relay control characteristic found: ${characteristic.uuid}")
+            Log.d("BleOperations", "Message write characteristic found: ${characteristic.uuid}")
             val bytes = value.toByteArray(Charsets.UTF_8)
-            log("Writing to ${characteristic.uuid}: $value")
+            Log.d("BleOperations", "Writing to ${characteristic.uuid}: $value")
             ConnectionManager.writeCharacteristic(device, characteristic, bytes)
         } else {
-            Log.e("BleOperations", "Relay control characteristic not found!")
-            log("Relay control characteristic not found!")
+            Log.e("BleOperations", "Message write characteristic not found!")
+            // Don't show error messages in conversation view
         }
     }
 
-    private fun enableRelayNotifications() {
-        val characteristic = characteristics.find { it.uuid == RELAY_NOTIFICATION_CHARACTERISTIC_UUID }
+    private fun enableMessageNotifications() {
+        Log.d("BleOperations", "Looking for notification characteristic: $MESSAGE_NOTIFICATION_CHARACTERISTIC_UUID")
+        
+        // Debug: List all available characteristics (only in debug logs)
+        characteristics.forEach { char ->
+            Log.d("BleOperations", "Available characteristic: ${char.uuid}, properties: ${char.properties}")
+        }
+        
+        val characteristic = characteristics.find { it.uuid == MESSAGE_NOTIFICATION_CHARACTERISTIC_UUID }
         if (characteristic != null) {
-            Log.d("BleOperations", "Relay notification characteristic found: ${characteristic.uuid}")
-            log("Enabling notifications on ${characteristic.uuid}")
-            ConnectionManager.enableNotifications(device, characteristic)
+            Log.d("BleOperations", "Message notification characteristic found: ${characteristic.uuid}")
+            
+            // Check if the characteristic supports notifications
+            if (characteristic.isNotifiable()) {
+                Log.d("BleOperations", "Enabling notifications...")
+                ConnectionManager.enableNotifications(device, characteristic)
+            } else {
+                Log.w("BleOperations", "Characteristic does not support notifications!")
+                // Don't show warnings in conversation view
+            }
         } else {
-            Log.e("BleOperations", "Relay notification characteristic not found!")
-            log("Relay notification characteristic not found!")
+            Log.e("BleOperations", "Message notification characteristic not found!")
+            // Don't show errors in conversation view
         }
     }
 
@@ -158,6 +237,26 @@ class BleOperationsActivity : AppCompatActivity() {
             val uiText = binding.logTextView.text
             val currentLogText = uiText.ifEmpty { "Beginning of log." }
             binding.logTextView.text = "$currentLogText\n$formattedMessage"
+            binding.logScrollView.post { binding.logScrollView.fullScroll(View.FOCUS_DOWN) }
+        }
+    }
+
+    @SuppressLint("SetTextI18n")
+    private fun logConversation(sender: String, message: String) {
+        val timestamp = SimpleDateFormat("HH:mm", Locale.US).format(Date())
+        val formattedMessage = when (sender) {
+            "You" -> "$timestamp You: $message"
+            else -> "$timestamp $sender: $message"
+        }
+        
+        runOnUiThread {
+            val currentText = binding.logTextView.text.toString()
+            val newText = if (currentText.isEmpty()) {
+                formattedMessage
+            } else {
+                "$currentText\n$formattedMessage"
+            }
+            binding.logTextView.text = newText
             binding.logScrollView.post { binding.logScrollView.fullScroll(View.FOCUS_DOWN) }
         }
     }
@@ -232,36 +331,63 @@ class BleOperationsActivity : AppCompatActivity() {
             }
 
             onCharacteristicRead = { _, characteristic, value ->
-                log("Read from ${characteristic.uuid}: ${value.toHexString()}")
+                Log.d("BleOperations", "Read from ${characteristic.uuid}: ${value.toHexString()}")
+                // Don't show technical read operations in conversation
             }
 
             onCharacteristicWrite = { _, characteristic ->
-                log("Wrote to ${characteristic.uuid}")
+                Log.d("BleOperations", "Wrote to ${characteristic.uuid}")
+                // Don't show write confirmations in conversation
             }
 
             onMtuChanged = { _, mtu ->
-                log("MTU updated to $mtu")
+                Log.d("BleOperations", "MTU updated to $mtu")
+                // Don't show MTU changes in conversation
             }
 
             onCharacteristicChanged = { _, characteristic, value ->
                 Log.d("BleOperations", "Value changed on ${characteristic.uuid}: ${value.toHexString()}")
-                log("Value changed on ${characteristic.uuid}: ${value.toHexString()}")
-                if (characteristic.uuid == RELAY_NOTIFICATION_CHARACTERISTIC_UUID) {
-                    val relayValue = String(value, Charsets.UTF_8)
-                    Log.d("BleOperations", "Relay value received: $relayValue")
-                    runOnUiThread {
-                        binding.relayValueLabel.text = "Relay Value: $relayValue"
+                
+                // Try to decode as text
+                val receivedData = String(value, Charsets.UTF_8).trim()
+                Log.d("BleOperations", "Decoded text: $receivedData")
+                
+                if (characteristic.uuid == MESSAGE_NOTIFICATION_CHARACTERISTIC_UUID) {
+                    Log.d("BleOperations", "Message received on notification characteristic: $receivedData")
+                    
+                    // Filter out confirmation messages and parse actual messages
+                    if (receivedData.startsWith("+RCV=")) {
+                        // Parse message format: +RCV=1,5,HELLO,0,11
+                        val extractedMessage = parseReceivedMessage(receivedData)
+                        if (extractedMessage != null) {
+                            runOnUiThread {
+                                logConversation("Contact", extractedMessage)
+                            }
+                        }
+                    } else if (receivedData == "+OK" || receivedData.startsWith("+OK")) {
+                        // Filter out confirmation messages - don't show in conversation
+                        Log.d("BleOperations", "Received confirmation message: $receivedData")
+                    } else {
+                        // For any other format, show as-is (fallback)
+                        runOnUiThread {
+                            logConversation("Contact", receivedData)
+                        }
                     }
+                } else {
+                    // Still log technical data for debugging if needed
+                    Log.d("BleOperations", "Data received on different characteristic: ${characteristic.uuid}")
                 }
             }
 
             onNotificationsEnabled = { _, characteristic ->
-                log("Enabled notifications on ${characteristic.uuid}")
+                Log.d("BleOperations", "Notifications enabled on ${characteristic.uuid}")
+                // Don't show notification status in conversation
                 notifyingCharacteristics.add(characteristic.uuid)
             }
 
             onNotificationsDisabled = { _, characteristic ->
-                log("Disabled notifications on ${characteristic.uuid}")
+                Log.d("BleOperations", "Notifications disabled on ${characteristic.uuid}")
+                // Don't show notification status in conversation
                 notifyingCharacteristics.remove(characteristic.uuid)
             }
         }
@@ -291,6 +417,11 @@ class BleOperationsActivity : AppCompatActivity() {
     private fun Context.hideKeyboard(view: View) {
         val inputMethodManager = getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager
         inputMethodManager.hideSoftInputFromWindow(view.windowToken, 0)
+    }
+
+    private fun hideKeyboard() {
+        val inputMethodManager = getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager
+        inputMethodManager.hideSoftInputFromWindow(binding.messageEditText.windowToken, 0)
     }
 
     private fun EditText.showKeyboard() {

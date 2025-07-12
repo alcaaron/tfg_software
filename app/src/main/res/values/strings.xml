@@ -15,8 +15,8 @@
   -->
 
 <resources>
-    <string name="app_name">REYAX BLE Connect</string>
-    <string name="ble_playground">Taste The Code DEMO</string>
+    <string name="app_name">BLE Disaster Messenger</string>
+    <string name="ble_playground">BLE Messenger</string>
     <string name="location_permission_required">Location Permission Required</string>
     <string name="location_permission_rationale">Starting from Android 6, the system requires apps to be granted location access in order to scan for BLE devices.\n\nYour location is never used aside from enabling the app to perform BLE scans.</string>
     <string name="bluetooth_permission_required">Nearby Devices Permission Required</string>
@@ -29,4 +29,9 @@
     <string name="disconnected">Disconnected</string>
     <string name="disconnected_or_unable_to_connect_to_device">Disconnected or unable to connect to %1$s.</string>
     <string name="ok">OK</string>
+    
+    <string-array name="target_addresses">
+        <item>1</item>
+        <item>2</item>
+    </string-array>
 </resources>
