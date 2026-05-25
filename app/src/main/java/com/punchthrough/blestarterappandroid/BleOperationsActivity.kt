@@ -51,9 +51,9 @@ import java.util.UUID
 import android.util.Log
 
 // BLE Module UUIDs - separate characteristics for write and notifications
-private val SERVICE_UUID = UUID.fromString("4880c12c-fdcb-4077-8920-a450d7f9b907")
-private val MESSAGE_WRITE_CHARACTERISTIC_UUID = UUID.fromString("f000c0c1-0451-4000-b000-000000000000")
-private val MESSAGE_NOTIFICATION_CHARACTERISTIC_UUID = UUID.fromString("f000c0c2-0451-4000-b000-000000000000")
+private val SERVICE_UUID = UUID.fromString("6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
+private val MESSAGE_WRITE_CHARACTERISTIC_UUID = UUID.fromString("6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
+private val MESSAGE_NOTIFICATION_CHARACTERISTIC_UUID = UUID.fromString("6E400003-B5A3-F393-E0A9-E50E24DCCA9E")
 
 class BleOperationsActivity : AppCompatActivity() {
 
@@ -135,18 +135,16 @@ class BleOperationsActivity : AppCompatActivity() {
         }
     }
 
-    private fun parseReceivedMessage(receivedData: String): String? {
-        // Parse format: +RCV=1,5,HELLO,0,11
-        // We want to extract the message part (HELLO in this example)
+    private fun parseReceivedMessage(receivedData: String): List<String>? {
+        // Parse format: +RCV=<src>,<node_id>,<msg>
         try {
             if (receivedData.startsWith("+RCV=")) {
                 val parts = receivedData.substring(5).split(",") // Remove "+RCV=" and split by comma
-                if (parts.size >= 3) {
-                    // parts[0] = sender address (1)
-                    // parts[1] = message length (5)
-                    // parts[2] = actual message (HELLO)
-                    // parts[3] and beyond = additional parameters
-                    return parts[2]
+                if (parts.size == 3) {
+                    // parts[0] = src address
+                    // parts[1] = node_id address
+                    // parts[2] = actual message
+                    return parts
                 }
             }
         } catch (e: Exception) {
@@ -162,8 +160,7 @@ class BleOperationsActivity : AppCompatActivity() {
         }
 
         val targetAddress = binding.targetAddressSpinner.selectedItem.toString()
-        val messageLength = message.length
-        val formattedMessage = "AT+SEND=$targetAddress,$messageLength,$message\r\n"
+        val formattedMessage = "AT+SEND=$targetAddress,$message\r\n"
         
         // Show only the actual message in the conversation
         logConversation("You", message)
@@ -245,8 +242,8 @@ class BleOperationsActivity : AppCompatActivity() {
     private fun logConversation(sender: String, message: String) {
         val timestamp = SimpleDateFormat("HH:mm", Locale.US).format(Date())
         val formattedMessage = when (sender) {
-            "You" -> "$timestamp You: $message"
-            else -> "$timestamp $sender: $message"
+            "You" -> "[$timestamp - You] $message"
+            else -> "[$timestamp - $sender] $message"
         }
         
         runOnUiThread {
@@ -357,17 +354,24 @@ class BleOperationsActivity : AppCompatActivity() {
                     
                     // Filter out confirmation messages and parse actual messages
                     if (receivedData.startsWith("+RCV=")) {
-                        // Parse message format: +RCV=1,5,HELLO,0,11
-                        val extractedMessage = parseReceivedMessage(receivedData)
-                        if (extractedMessage != null) {
+                        // Parse message format: +RCV=<src>,<node_id>,<msg>
+                        val aMessageArguments = parseReceivedMessage(receivedData)
+                        if (aMessageArguments != null) {
                             runOnUiThread {
-                                logConversation("Contact", extractedMessage)
+                                logConversation(aMessageArguments[0], aMessageArguments[2])
                             }
                         }
                     } else if (receivedData == "+OK" || receivedData.startsWith("+OK")) {
                         // Filter out confirmation messages - don't show in conversation
                         Log.d("BleOperations", "Received confirmation message: $receivedData")
-                    } else {
+                    }
+                    else if (receivedData.startsWith("alive"))
+                    {
+                        Log.d("BleOperations", "Heartbet received: $receivedData")
+                        // Add internal logic processing of HB signal
+
+                    }
+                    else {
                         // For any other format, show as-is (fallback)
                         runOnUiThread {
                             logConversation("Contact", receivedData)

@@ -15,8 +15,8 @@
   -->
 
 <resources>
-    <string name="app_name">BLE Disaster Messenger</string>
-    <string name="ble_playground">BLE Messenger</string>
+    <string name="app_name">A3MESH Messenger</string>
+    <string name="ble_playground">A3MESH BLE Messenger</string>
     <string name="location_permission_required">Location Permission Required</string>
     <string name="location_permission_rationale">Starting from Android 6, the system requires apps to be granted location access in order to scan for BLE devices.\n\nYour location is never used aside from enabling the app to perform BLE scans.</string>
     <string name="bluetooth_permission_required">Nearby Devices Permission Required</string>
