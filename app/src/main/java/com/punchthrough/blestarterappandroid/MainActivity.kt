@@ -45,9 +45,11 @@ import com.punchthrough.blestarterappandroid.ble.ConnectionEventListener
 import com.punchthrough.blestarterappandroid.ble.ConnectionManager
 import com.punchthrough.blestarterappandroid.databinding.ActivityMainBinding
 import timber.log.Timber
+import androidx.activity.viewModels
 import com.punchthrough.blestarterappandroid.BleOperationsActivity
 
 private const val PERMISSION_REQUEST_CODE = 1
+private val bleViewModel: BleViewModel by viewModels()
 
 class MainActivity : AppCompatActivity() {
 
@@ -297,6 +299,7 @@ class MainActivity : AppCompatActivity() {
     private val connectionEventListener by lazy {
         ConnectionEventListener().apply {
             onConnectionSetupComplete = { gatt ->
+                bleViewModel.onDeviceConnected(gatt.device)
                 Intent(this@MainActivity, BleOperationsActivity::class.java).also {
                     it.putExtra(BluetoothDevice.EXTRA_DEVICE, gatt.device)
                     startActivity(it)
