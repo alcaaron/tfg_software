@@ -56,10 +56,11 @@ private val SERVICE_UUID = UUID.fromString("6E400001-B5A3-F393-E0A9-E50E24DCCA9E
 private val MESSAGE_WRITE_CHARACTERISTIC_UUID = UUID.fromString("6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
 private val MESSAGE_NOTIFICATION_CHARACTERISTIC_UUID = UUID.fromString("6E400003-B5A3-F393-E0A9-E50E24DCCA9E")
 // View Model
-private val bleViewModel: BleViewModel by viewModels()
+
 class BleOperationsActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityBleOperationsBinding
+    private val bleViewModel: BleViewModel by viewModels()
     private val device: BluetoothDevice by lazy {
         intent.parcelableExtraCompat(BluetoothDevice.EXTRA_DEVICE)
             ?: error("Missing BluetoothDevice from MainActivity!")
@@ -320,6 +321,7 @@ class BleOperationsActivity : AppCompatActivity() {
     private val connectionEventListener by lazy {
         ConnectionEventListener().apply {
             onDisconnect = {
+                bleViewModel.onDeviceDisconnected()
                 runOnUiThread {
                     AlertDialog.Builder(this@BleOperationsActivity)
                         .setTitle("Disconnected")
@@ -362,7 +364,7 @@ class BleOperationsActivity : AppCompatActivity() {
                             runOnUiThread {
                                 logConversation(aMessageArguments[0], aMessageArguments[2])
                             }
-                            bleViewModel.onMessageReceived((aMessageArguments[0].toInt(),aMessageArguments[2])
+                            bleViewModel.onMessageReceived(aMessageArguments[0].toInt(),aMessageArguments[2])
                         }
                     } else if (receivedData == "+OK" || receivedData.startsWith("+OK")) {
                         // Filter out confirmation messages - don't show in conversation
