@@ -85,7 +85,8 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun sendViaBle(command: String) {
-        val device = bleViewModel.connectedDevice.value ?: return
+        val device = com.punchthrough.blestarterappandroid.ble.ConnectionManager
+            .connectedDevices().firstOrNull() ?: return
         val services = com.punchthrough.blestarterappandroid.ble.ConnectionManager
             .servicesOnDevice(device) ?: return
         val characteristic = services

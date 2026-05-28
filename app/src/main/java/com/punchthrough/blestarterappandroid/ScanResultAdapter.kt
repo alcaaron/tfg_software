@@ -53,11 +53,9 @@ class ScanResultAdapter(
         @SuppressLint("MissingPermission", "SetTextI18n")
         fun bind(result: ScanResult) {
             view.findViewById<TextView>(R.id.device_name).text =
-                if (view.context.hasRequiredBluetoothPermissions()) {
-                    result.device.name ?: "Unnamed"
-                } else {
-                    error("Missing required Bluetooth permissions")
-                }
+                result.scanRecord?.deviceName
+                    ?: result.device.name
+                    ?: "Unnamed"
             view.findViewById<TextView>(R.id.mac_address).text = result.device.address
             view.findViewById<TextView>(R.id.signal_strength).text = "${result.rssi} dBm"
             view.setOnClickListener { onClickListener.invoke(result) }

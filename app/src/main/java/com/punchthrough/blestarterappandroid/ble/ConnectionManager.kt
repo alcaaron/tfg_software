@@ -56,6 +56,8 @@ object ConnectionManager {
     fun servicesOnDevice(device: BluetoothDevice): List<BluetoothGattService>? =
         deviceGattMap[device]?.services
 
+    fun connectedDevices(): Set<BluetoothDevice> = deviceGattMap.keys.toSet()
+
     fun listenToBondStateChanges(context: Context) {
         context.applicationContext.registerReceiver(
             broadcastReceiver,
