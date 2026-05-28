@@ -1,16 +1,23 @@
 package com.punchthrough.blestarterappandroid
 
+import android.annotation.SuppressLint
 import android.app.Application
 import android.bluetooth.BluetoothDevice
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
+import com.punchthrough.blestarterappandroid.ble.ConnectionManager
 import com.punchthrough.blestarterappandroid.data.database.AppDatabase
 import com.punchthrough.blestarterappandroid.data.model.Contact
 import com.punchthrough.blestarterappandroid.data.model.Message
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.util.UUID
+
+data class NeighborNode(val nodeId: String, val rssi: String, val t: String)
+
+private val BLE_WRITE_UUID = UUID.fromString("6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
 
 class BleViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -19,39 +26,51 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
     private val messageDao = db.messageDao()
     private val contactDao = db.contactDao()
 
-    // --- Estado de conexión BLE ---
-    // Guarda el dispositivo BLE actualmente conectado (null = desconectado)
     private val _connectedDevice = MutableLiveData<BluetoothDevice?>(null)
     val connectedDevice: LiveData<BluetoothDevice?> = _connectedDevice
 
-    // Texto de estado legible para mostrar en la UI ("Conectado", "Desconectado"...)
     private val _connectionStatus = MutableLiveData<String>("Desconectado")
     val connectionStatus: LiveData<String> = _connectionStatus
 
-    // --- Mensajes entrantes ---
-    // Cada vez que llega un mensaje nuevo por BLE, se emite aquí
-    // Los fragments que estén escuchando reaccionarán automáticamente
     private val _incomingMessage = MutableLiveData<Message>()
     val incomingMessage: LiveData<Message> = _incomingMessage
 
-    // --- Contactos y mensajes (desde Room) ---
+    private val _deviceInfo = MutableLiveData<Map<String, String>>(emptyMap())
+    val deviceInfo: LiveData<Map<String, String>> = _deviceInfo
+
+    private val _neighbors = MutableLiveData<List<NeighborNode>>(emptyList())
+    val neighbors: LiveData<List<NeighborNode>> = _neighbors
+
     val allContacts: LiveData<List<Contact>> = contactDao.getAllContacts()
     val lastMessages: LiveData<List<Message>> = messageDao.getLastMessagePerContact()
 
-    // -------------------------------------------------------
-    // Funciones que llama la lógica BLE existente
-    // -------------------------------------------------------
-
-    // Llama a esto cuando el ConnectionManager confirme conexión
+    @SuppressLint("MissingPermission")
     fun onDeviceConnected(device: BluetoothDevice) {
         _connectedDevice.postValue(device)
         _connectionStatus.postValue("Conectado a ${device.name ?: device.address}")
     }
 
-    // Llama a esto cuando el ConnectionManager detecte desconexión
     fun onDeviceDisconnected() {
         _connectedDevice.postValue(null)
         _connectionStatus.postValue("Desconectado")
+        _deviceInfo.postValue(emptyMap())
+        _neighbors.postValue(emptyList())
+    }
+
+    fun onDeviceInfoReceived(info: Map<String, String>) {
+        _deviceInfo.postValue(info)
+    }
+
+    fun onNeighborsReceived(nodes: List<NeighborNode>) {
+        _neighbors.postValue(nodes)
+    }
+
+    fun sendAtCommand(command: String) {
+        val device = ConnectionManager.connectedDevices().firstOrNull() ?: return
+        val characteristic = ConnectionManager.servicesOnDevice(device)
+            ?.flatMap { it.characteristics ?: emptyList() }
+            ?.find { it.uuid == BLE_WRITE_UUID } ?: return
+        ConnectionManager.writeCharacteristic(device, characteristic, command.toByteArray(Charsets.UTF_8))
     }
 
     // Llama a esto cuando llegue un mensaje +RCV del módulo LoRa

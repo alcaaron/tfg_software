@@ -28,8 +28,9 @@ class MainActivity : AppCompatActivity() {
                 if (notifyChar != null && notifyChar.isNotifiable()) {
                     ConnectionManager.enableNotifications(gatt.device, notifyChar)
                 }
+                bleViewModel.sendAtCommand("AT+INFO?\r\n")
                 runOnUiThread {
-                    binding.bottomNav.selectedItemId = R.id.chatsFragment
+                    binding.bottomNav.selectedItemId = R.id.deviceFragment
                 }
             }
 
@@ -40,17 +41,54 @@ class MainActivity : AppCompatActivity() {
             onCharacteristicChanged = { _, characteristic, value ->
                 if (characteristic.uuid == MESSAGE_NOTIFICATION_UUID) {
                     val text = String(value, Charsets.UTF_8).trim()
-                    if (text.startsWith("+RCV=")) {
-                        val parts = text.removePrefix("+RCV=").split(",")
-                        if (parts.size == 3) {
-                            parts[0].toIntOrNull()?.let { senderAddress ->
-                                bleViewModel.onMessageReceived(senderAddress, parts[2])
+                    when {
+                        text.startsWith("+RCV=") -> {
+                            val parts = text.removePrefix("+RCV=").split(",")
+                            if (parts.size == 3) {
+                                parts[0].toIntOrNull()?.let { addr ->
+                                    bleViewModel.onMessageReceived(addr, parts[2])
+                                }
                             }
+                        }
+                        text.startsWith("+NEIGHBORS=") -> {
+                            bleViewModel.onNeighborsReceived(parseNeighbors(text))
+                        }
+                        text.contains("+NODEID=") || text.startsWith("+NODEID=") -> {
+                            val info = parseDeviceInfo(text)
+                            if (info.isNotEmpty()) bleViewModel.onDeviceInfoReceived(info)
                         }
                     }
                 }
             }
         }
+    }
+
+    private fun parseDeviceInfo(text: String): Map<String, String> {
+        val info = mutableMapOf<String, String>()
+        text.split("\r\n", "\n").forEach { line ->
+            val clean = line.trim()
+            if (clean.startsWith("+") && clean.contains("=")) {
+                val key = clean.removePrefix("+").substringBefore("=")
+                val value = clean.substringAfter("=")
+                if (key.isNotEmpty()) info[key] = value
+            }
+        }
+        return info
+    }
+
+    private fun parseNeighbors(text: String): List<NeighborNode> {
+        val nodes = mutableListOf<NeighborNode>()
+        text.split("\r\n", "\n").forEach { line ->
+            val clean = line.trim()
+            if (clean.startsWith("+N:")) {
+                val body = clean.removePrefix("+N:").trim().trimEnd(';')
+                val nodeId = body.substringBefore(",").trim()
+                val rssi = body.substringAfter("RSSI:").substringBefore(",").trim()
+                val t = body.substringAfter("T:").trim()
+                if (nodeId.isNotEmpty()) nodes.add(NeighborNode(nodeId, rssi, t))
+            }
+        }
+        return nodes
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

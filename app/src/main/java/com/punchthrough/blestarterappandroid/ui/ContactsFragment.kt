@@ -9,9 +9,15 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.punchthrough.blestarterappandroid.BleViewModel
 import com.punchthrough.blestarterappandroid.databinding.FragmentContactsBinding
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+
+private const val NEIGHBORS_REFRESH_INTERVAL_MS = 30_000L
 
 class ContactsFragment : Fragment() {
 
@@ -19,10 +25,9 @@ class ContactsFragment : Fragment() {
     private val binding get() = _binding!!
     private val bleViewModel: BleViewModel by activityViewModels()
 
-    private val adapter = ContactsAdapter { contact ->
-        // Pulsación larga: opciones sobre el contacto
+    private val contactsAdapter = ContactsAdapter { contact ->
         AlertDialog.Builder(requireContext())
-            .setTitle(contact.name.ifBlank { "Nodo ${contact.address}" })
+            .setTitle(contact.name.ifBlank { "Nodo ${contact.address.toString(16).uppercase()}" })
             .setItems(arrayOf("Editar nombre", "Eliminar")) { _, which ->
                 when (which) {
                     0 -> showEditDialog(contact.address, contact.name)
@@ -32,10 +37,12 @@ class ContactsFragment : Fragment() {
             .show()
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
+    private val neighborsAdapter = NeighborsAdapter()
+
+    private var neighborsExpanded = true
+    private var contactsExpanded = true
+
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentContactsBinding.inflate(inflater, container, false)
         return binding.root
     }
@@ -43,17 +50,65 @@ class ContactsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        binding.contactsRecyclerView.layoutManager = LinearLayoutManager(requireContext())
-        binding.contactsRecyclerView.adapter = adapter
+        binding.neighborsRecyclerView.apply {
+            layoutManager = LinearLayoutManager(requireContext())
+            adapter = neighborsAdapter
+            isNestedScrollingEnabled = false
+        }
+        binding.contactsRecyclerView.apply {
+            layoutManager = LinearLayoutManager(requireContext())
+            adapter = contactsAdapter
+            isNestedScrollingEnabled = false
+        }
 
+        // Expand/collapse Vecinos
+        binding.neighborsHeader.setOnClickListener {
+            neighborsExpanded = !neighborsExpanded
+            binding.neighborsContent.visibility = if (neighborsExpanded) View.VISIBLE else View.GONE
+            binding.neighborsExpandIndicator.text = if (neighborsExpanded) "▼" else "▶"
+        }
+
+        // Expand/collapse Contactos
+        binding.contactsHeader.setOnClickListener {
+            contactsExpanded = !contactsExpanded
+            binding.contactsContent.visibility = if (contactsExpanded) View.VISIBLE else View.GONE
+            binding.contactsExpandIndicator.text = if (contactsExpanded) "▼" else "▶"
+        }
+
+        // Manual refresh
+        binding.refreshNeighborsButton.setOnClickListener {
+            bleViewModel.sendAtCommand("AT+NEIGHBORS?\r\n")
+        }
+
+        // Add contact FAB
+        binding.fabAddContact.setOnClickListener { showAddDialog() }
+
+        // Observe contacts
         bleViewModel.allContacts.observe(viewLifecycleOwner) { contacts ->
-            adapter.submitList(contacts)
+            contactsAdapter.submitList(contacts)
             binding.emptyText.visibility = if (contacts.isEmpty()) View.VISIBLE else View.GONE
             binding.contactsRecyclerView.visibility = if (contacts.isEmpty()) View.GONE else View.VISIBLE
         }
 
-        binding.fabAddContact.setOnClickListener {
-            showAddDialog()
+        // Observe neighbors
+        bleViewModel.neighbors.observe(viewLifecycleOwner) { nodes ->
+            neighborsAdapter.submitList(nodes)
+            binding.neighborsEmptyText.visibility = if (nodes.isEmpty()) View.VISIBLE else View.GONE
+            binding.neighborsRecyclerView.visibility = if (nodes.isEmpty()) View.GONE else View.VISIBLE
+        }
+
+        // Auto-refresh neighbors when connected
+        bleViewModel.connectedDevice.observe(viewLifecycleOwner) { device ->
+            if (device != null) bleViewModel.sendAtCommand("AT+NEIGHBORS?\r\n")
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            while (isActive) {
+                delay(NEIGHBORS_REFRESH_INTERVAL_MS)
+                if (bleViewModel.connectedDevice.value != null) {
+                    bleViewModel.sendAtCommand("AT+NEIGHBORS?\r\n")
+                }
+            }
         }
     }
 
@@ -64,8 +119,8 @@ class ContactsFragment : Fragment() {
         }
         val nameField = EditText(requireContext()).apply { hint = "Nombre (p.ej. Base Camp)" }
         val addressField = EditText(requireContext()).apply {
-            hint = "Dirección LoRa (número, p.ej. 2)"
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            hint = "Dirección LoRa hex (p.ej. 1A)"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
         }
         layout.addView(nameField)
         layout.addView(addressField)
@@ -75,10 +130,9 @@ class ContactsFragment : Fragment() {
             .setView(layout)
             .setPositiveButton("Guardar") { _, _ ->
                 val name = nameField.text.toString().trim()
-                val address = addressField.text.toString().trim().toIntOrNull()
-                if (address != null) {
-                    bleViewModel.saveContact(address, name)
-                }
+                val hexText = addressField.text.toString().trim().removePrefix("0x").removePrefix("0X")
+                val address = hexText.toIntOrNull(16)
+                if (address != null) bleViewModel.saveContact(address, name)
             }
             .setNegativeButton("Cancelar", null)
             .show()
@@ -98,8 +152,7 @@ class ContactsFragment : Fragment() {
             .setTitle("Editar contacto")
             .setView(layout)
             .setPositiveButton("Guardar") { _, _ ->
-                val newName = nameField.text.toString().trim()
-                bleViewModel.saveContact(address, newName)
+                bleViewModel.saveContact(address, nameField.text.toString().trim())
             }
             .setNegativeButton("Cancelar", null)
             .show()
