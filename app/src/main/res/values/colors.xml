@@ -19,4 +19,5 @@
     <color name="colorPrimary">#2196F3</color>
     <color name="colorPrimaryVariant">#1565C0</color>
     <color name="colorOnPrimary">#FFFFFF</color>
+    <color name="connected_green">#4CAF50</color>
 </resources>

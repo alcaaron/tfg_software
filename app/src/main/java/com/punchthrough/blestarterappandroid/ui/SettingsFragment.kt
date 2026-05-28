@@ -1,16 +1,18 @@
 package com.punchthrough.blestarterappandroid.ui
 
+import android.app.AlertDialog
 import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
+import android.widget.LinearLayout
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import com.punchthrough.blestarterappandroid.BleViewModel
-import com.punchthrough.blestarterappandroid.ble.ConnectionManager
 import com.punchthrough.blestarterappandroid.databinding.FragmentSettingsBinding
-import java.util.UUID
 
 class SettingsFragment : Fragment() {
 
@@ -22,12 +24,7 @@ class SettingsFragment : Fragment() {
         requireContext().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
     }
 
-    private val writeUUID = UUID.fromString("6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
-
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentSettingsBinding.inflate(inflater, container, false)
         return binding.root
     }
@@ -35,57 +32,113 @@ class SettingsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Cargar valores guardados
-        binding.myNameField.setText(prefs.getString("my_name", ""))
-        binding.myAddressField.setText(prefs.getInt("my_address", 1).toString())
-        binding.channelField.setText(prefs.getInt("channel", 0).toString())
-        binding.powerField.setText(prefs.getInt("power", 22).toString())
+        updateProfileDisplay(prefs.getString("my_name", "") ?: "")
 
-        binding.saveButton.setOnClickListener {
-            saveAndSend()
+        binding.editNameButton.setOnClickListener { showEditNameDialog() }
+
+        val savedMode = prefs.getInt("night_mode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
+        binding.darkModeSwitch.isChecked = savedMode == AppCompatDelegate.MODE_NIGHT_YES
+        binding.darkModeRow.setOnClickListener {
+            binding.darkModeSwitch.isChecked = !binding.darkModeSwitch.isChecked
+            applyNightMode(binding.darkModeSwitch.isChecked)
         }
+
+        binding.languageRow.setOnClickListener { showLanguageDialog() }
+        binding.advancedRow.setOnClickListener { showAdvancedDialog() }
     }
 
-    private fun saveAndSend() {
-        val name = binding.myNameField.text.toString().trim()
-        val address = binding.myAddressField.text.toString().toIntOrNull() ?: 1
-        val channel = binding.channelField.text.toString().toIntOrNull() ?: 0
-        val power = binding.powerField.text.toString().toIntOrNull() ?: 22
+    private fun updateProfileDisplay(name: String) {
+        binding.profileName.text = name.ifBlank { "Sin nombre" }
+        binding.profileAvatar.text = name.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+    }
 
-        // Guardar en SharedPreferences
-        prefs.edit()
-            .putString("my_name", name)
-            .putInt("my_address", address)
-            .putInt("channel", channel)
-            .putInt("power", power)
-            .apply()
+    private fun applyNightMode(dark: Boolean) {
+        val mode = if (dark) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO
+        prefs.edit().putInt("night_mode", mode).apply()
+        AppCompatDelegate.setDefaultNightMode(mode)
+    }
 
-        // Enviar comandos AT al módulo si hay dispositivo conectado
-        val device = bleViewModel.connectedDevice.value
-        if (device != null) {
-            val services = ConnectionManager.servicesOnDevice(device)
-            val characteristic = services
-                ?.flatMap { it.characteristics ?: emptyList() }
-                ?.find { it.uuid == writeUUID }
-
-            if (characteristic != null) {
-                val commands = listOf(
-                    "AT+ADDRESS=$address\r\n",
-                    "AT+CHANNEL=$channel\r\n",
-                    "AT+CRFOP=$power\r\n"
-                )
-                commands.forEach { cmd ->
-                    ConnectionManager.writeCharacteristic(
-                        device, characteristic, cmd.toByteArray(Charsets.UTF_8)
-                    )
-                }
-                binding.atStatus.text = "✓ Configuración enviada al módulo"
-            } else {
-                binding.atStatus.text = "Configuración guardada (sin dispositivo conectado)"
-            }
-        } else {
-            binding.atStatus.text = "Configuración guardada (sin dispositivo conectado)"
+    private fun showEditNameDialog() {
+        val editText = EditText(requireContext()).apply {
+            setText(prefs.getString("my_name", ""))
+            hint = "Tu nombre"
         }
+        AlertDialog.Builder(requireContext())
+            .setTitle("Editar nombre")
+            .setView(LinearLayout(requireContext()).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(48, 16, 48, 0)
+                addView(editText)
+            })
+            .setPositiveButton("Guardar") { _, _ ->
+                val newName = editText.text.toString().trim()
+                prefs.edit().putString("my_name", newName).apply()
+                updateProfileDisplay(newName)
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun showLanguageDialog() {
+        val languages = arrayOf("Español", "English", "Français")
+        val current = prefs.getInt("language_index", 0)
+        AlertDialog.Builder(requireContext())
+            .setTitle("Idioma")
+            .setSingleChoiceItems(languages, current) { dialog, which ->
+                prefs.edit().putInt("language_index", which).apply()
+                dialog.dismiss()
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun showAdvancedDialog() {
+        val sfField = EditText(requireContext()).apply {
+            hint = "Spreading Factor (7-12)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            setText(prefs.getInt("sf", 10).toString())
+        }
+        val powerField = EditText(requireContext()).apply {
+            hint = "Potencia TX (0-22 dBm)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            setText(prefs.getInt("power", 22).toString())
+        }
+        val addressField = EditText(requireContext()).apply {
+            hint = "Mi dirección LoRa"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            setText(prefs.getInt("my_address", 1).toString())
+        }
+        val channelField = EditText(requireContext()).apply {
+            hint = "Canal (0-15)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            setText(prefs.getInt("channel", 0).toString())
+        }
+        val layout = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 16, 48, 0)
+            addView(sfField)
+            addView(powerField)
+            addView(addressField)
+            addView(channelField)
+        }
+        AlertDialog.Builder(requireContext())
+            .setTitle("Configuración avanzada")
+            .setView(layout)
+            .setPositiveButton("Guardar y enviar") { _, _ ->
+                val sf = sfField.text.toString().toIntOrNull() ?: 10
+                val power = powerField.text.toString().toIntOrNull() ?: 22
+                val address = addressField.text.toString().toIntOrNull() ?: 1
+                val channel = channelField.text.toString().toIntOrNull() ?: 0
+                prefs.edit()
+                    .putInt("sf", sf).putInt("power", power)
+                    .putInt("my_address", address).putInt("channel", channel)
+                    .apply()
+                bleViewModel.sendAtCommand("AT+ADDRESS=$address\r\n")
+                bleViewModel.sendAtCommand("AT+CHANNEL=$channel\r\n")
+                bleViewModel.sendAtCommand("AT+CRFOP=$power\r\n")
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
     }
 
     override fun onDestroyView() {

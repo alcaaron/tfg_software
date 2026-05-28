@@ -174,10 +174,12 @@ class DeviceFragment : Fragment() {
     }
 
     private fun updateDeviceInfoDisplay(info: Map<String, String>) {
+        binding.batteryText.text = info["BATT"]?.let { "🔋 $it%" } ?: ""
         binding.deviceInfoContainer.removeAllViews()
-        if (info.isEmpty()) return
+        val displayInfo = info.filter { it.key != "BATT" }
+        if (displayInfo.isEmpty()) return
         val inflater = LayoutInflater.from(requireContext())
-        info.forEach { (key, value) ->
+        displayInfo.forEach { (key, value) ->
             val row = inflater.inflate(R.layout.item_device_info_field, binding.deviceInfoContainer, false)
             row.findViewById<TextView>(R.id.infoLabel).text = INFO_LABELS[key] ?: key
             row.findViewById<TextView>(R.id.infoValue).text = value

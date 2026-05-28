@@ -1,6 +1,7 @@
 package com.punchthrough.blestarterappandroid.ui
 
 import android.app.AlertDialog
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -12,6 +13,7 @@ import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.punchthrough.blestarterappandroid.BleViewModel
+import com.punchthrough.blestarterappandroid.ChatActivity
 import com.punchthrough.blestarterappandroid.databinding.FragmentContactsBinding
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -25,17 +27,27 @@ class ContactsFragment : Fragment() {
     private val binding get() = _binding!!
     private val bleViewModel: BleViewModel by activityViewModels()
 
-    private val contactsAdapter = ContactsAdapter { contact ->
-        AlertDialog.Builder(requireContext())
-            .setTitle(contact.name.ifBlank { "Nodo ${contact.address.toString(16).uppercase()}" })
-            .setItems(arrayOf("Editar nombre", "Eliminar")) { _, which ->
-                when (which) {
-                    0 -> showEditDialog(contact.address, contact.name)
-                    1 -> bleViewModel.deleteContact(contact)
+    private val contactsAdapter = ContactsAdapter(
+        onClick = { contact ->
+            startActivity(
+                Intent(requireContext(), ChatActivity::class.java).apply {
+                    putExtra(ChatActivity.EXTRA_CONTACT_ADDRESS, contact.address)
+                    putExtra(ChatActivity.EXTRA_CONTACT_NAME, contact.name.ifBlank { "Nodo ${contact.address.toString(16).uppercase()}" })
                 }
-            }
-            .show()
-    }
+            )
+        },
+        onLongClick = { contact ->
+            AlertDialog.Builder(requireContext())
+                .setTitle(contact.name.ifBlank { "Nodo ${contact.address.toString(16).uppercase()}" })
+                .setItems(arrayOf("Editar nombre", "Eliminar")) { _, which ->
+                    when (which) {
+                        0 -> showEditDialog(contact.address, contact.name)
+                        1 -> bleViewModel.deleteContact(contact)
+                    }
+                }
+                .show()
+        }
+    )
 
     private val neighborsAdapter = NeighborsAdapter()
 

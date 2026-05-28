@@ -24,7 +24,7 @@
         android:layout_marginBottom="24dp"
         android:background="@drawable/nav_pill_background"
         app:elevation="12dp"
-        app:labelVisibilityMode="labeled"
+        app:labelVisibilityMode="unlabeled"
         app:menu="@menu/bottom_nav_menu" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

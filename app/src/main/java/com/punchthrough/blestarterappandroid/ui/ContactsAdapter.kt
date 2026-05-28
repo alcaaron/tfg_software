@@ -12,6 +12,7 @@ import java.util.Date
 import java.util.Locale
 
 class ContactsAdapter(
+    private val onClick: (Contact) -> Unit,
     private val onLongClick: (Contact) -> Unit
 ) : ListAdapter<Contact, ContactsAdapter.ContactViewHolder>(DiffCallback) {
 
@@ -27,6 +28,7 @@ class ContactsAdapter(
             } else {
                 "Nunca visto"
             }
+            binding.root.setOnClickListener { onClick(contact) }
             binding.root.setOnLongClickListener {
                 onLongClick(contact)
                 true
