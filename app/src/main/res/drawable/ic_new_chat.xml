@@ -1,0 +1,14 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="960"
+    android:viewportHeight="960">
+    <!--
+      Bubble body with tail (bottom-right), plus sign as evenOdd cutout.
+      evenOdd fill rule: the + overlapping area becomes transparent.
+    -->
+    <path
+        android:fillColor="@android:color/white"
+        android:fillType="evenOdd"
+        android:pathData="M200,80L760,80Q880,80 880,220L880,560Q880,700 760,700L560,700L700,880L440,700L200,700Q80,700 80,560L80,220Q80,80 200,80ZM440,230L520,230L520,350L660,350L660,430L520,430L520,550L440,550L440,430L300,430L300,350L440,350Z"/>
+</vector>

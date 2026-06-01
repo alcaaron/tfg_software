@@ -1,0 +1,18 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="960"
+    android:viewportHeight="960">
+    <!-- Person head (circle) -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M180,280 A140,140 0 0 1 460,280 A140,140 0 0 1 180,280Z"/>
+    <!-- Person body -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M100,720Q100,560 200,500L440,500Q540,560 540,720L540,840Q540,860 520,860L120,860Q100,860 100,840Z"/>
+    <!-- Plus sign (right side) -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M640,580L720,580L720,660L800,660L800,740L720,740L720,820L640,820L640,740L560,740L560,660L640,660Z"/>
+</vector>
