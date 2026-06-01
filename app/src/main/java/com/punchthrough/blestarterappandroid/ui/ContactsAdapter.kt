@@ -1,5 +1,6 @@
 package com.punchthrough.blestarterappandroid.ui
 
+import android.content.res.ColorStateList
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
@@ -22,7 +23,9 @@ class ContactsAdapter(
         fun bind(contact: Contact) {
             binding.contactName.text = contact.name.ifBlank { "Sin nombre" }
             binding.avatarText.text = contact.name.firstOrNull()?.uppercaseChar()?.toString() ?: "#"
-            binding.contactAddress.text = "Addr: ${contact.address}"
+            binding.avatarText.backgroundTintList =
+                ColorStateList.valueOf(ChatsAdapter.deriveAvatarColor(contact.address))
+            binding.contactAddress.text = "Addr: ${"%08x".format(contact.address).uppercase()}"
             binding.contactLastSeen.text = if (contact.lastSeen > 0) {
                 "Visto: ${SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()).format(Date(contact.lastSeen))}"
             } else {

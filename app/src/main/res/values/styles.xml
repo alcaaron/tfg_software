@@ -19,5 +19,19 @@
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryVariant">@color/colorPrimaryVariant</item>
         <item name="colorOnPrimary">@color/colorOnPrimary</item>
+        <item name="colorSecondaryContainer">@color/colorSecondaryContainerGreen</item>
+        <item name="colorOnSecondaryContainer">@color/colorPrimaryVariant</item>
+        <item name="android:statusBarColor">?attr/colorSurface</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <style name="ShapeAppearance.App.RoundedCorner" parent="ShapeAppearance.Material3.Corner.Full">
+        <item name="cornerSize">24dp</item>
+    </style>
+
+    <style name="Widget.App.BottomNav.ActiveIndicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
+        <item name="android:width">56dp</item>
+        <item name="android:height">48dp</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.App.RoundedCorner</item>
     </style>
 </resources>

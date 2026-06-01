@@ -6,24 +6,24 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.punchthrough.blestarterappandroid.databinding.ActivityChatBinding
+import com.punchthrough.blestarterappandroid.security.SessionKeyStore
 import com.punchthrough.blestarterappandroid.ui.MessagesAdapter
 
 class ChatActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityChatBinding
+    // by viewModels() crea una instancia propia, pero sendMessage() funciona igualmente
+    // porque ConnectionManager y SessionKeyStore son singletons de proceso.
     private val bleViewModel: BleViewModel by viewModels()
     private val messagesAdapter = MessagesAdapter()
 
-    // Dirección y nombre del contacto, pasados desde ChatsFragment
     private var contactAddress: Int = -1
     private var contactName: String = ""
 
     companion object {
         const val EXTRA_CONTACT_ADDRESS = "extra_contact_address"
         const val EXTRA_CONTACT_NAME = "extra_contact_name"
-        val MESSAGE_WRITE_UUID = java.util.UUID.fromString(
-            "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
-        )
+        const val PUBLIC_CHANNEL_ADDRESS = BleViewModel.PUBLIC_CHANNEL_ADDRESS
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -31,69 +31,50 @@ class ChatActivity : AppCompatActivity() {
         binding = ActivityChatBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Recuperar datos del contacto
         contactAddress = intent.getIntExtra(EXTRA_CONTACT_ADDRESS, -1)
-        contactName = intent.getStringExtra(EXTRA_CONTACT_NAME)
-            ?: "Nodo $contactAddress"
+        contactName = intent.getStringExtra(EXTRA_CONTACT_NAME) ?: "Nodo $contactAddress"
 
-        // Configurar toolbar
         binding.toolbar.title = contactName
         binding.toolbar.setNavigationOnClickListener { finish() }
 
-        // Configurar RecyclerView
-        val layoutManager = LinearLayoutManager(this).apply {
-            stackFromEnd = true  // los mensajes nuevos aparecen abajo
-        }
+        val layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
         binding.messagesRecyclerView.layoutManager = layoutManager
         binding.messagesRecyclerView.adapter = messagesAdapter
 
-        // Observar mensajes de esta conversación desde Room
-        bleViewModel.getMessagesForContact(contactAddress)
-            .observe(this) { messages ->
-                messagesAdapter.submitList(messages) {
-                    // Scroll automático al último mensaje
-                    if (messages.isNotEmpty()) {
-                        binding.messagesRecyclerView.scrollToPosition(messages.size - 1)
-                    }
+        bleViewModel.getMessagesForContact(contactAddress).observe(this) { messages ->
+            messagesAdapter.submitList(messages) {
+                if (messages.isNotEmpty()) {
+                    binding.messagesRecyclerView.scrollToPosition(messages.size - 1)
                 }
             }
-
-        // Botón enviar
-        binding.sendButton.setOnClickListener { sendMessage() }
-
-        // Enviar también al pulsar "Enter" en el teclado
-        binding.messageEditText.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == EditorInfo.IME_ACTION_SEND) {
-                sendMessage()
-                true
-            } else false
         }
+
+        binding.sendButton.setOnClickListener { sendMessage() }
+        binding.messageEditText.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_SEND) { sendMessage(); true } else false
+        }
+
+        updateEncryptionStatus()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Re-check por si el handshake terminó mientras la activity estaba en background
+        updateEncryptionStatus()
     }
 
     private fun sendMessage() {
         val text = binding.messageEditText.text.toString().trim()
         if (text.isEmpty() || contactAddress == -1) return
-
-        // Formatear comando AT y enviar por BLE
-        val atCommand = "AT+SEND=$contactAddress,$text\r\n"
-        sendViaBle(atCommand)
-
-        // Guardar en Room como mensaje saliente
-        bleViewModel.onMessageSent(contactAddress, text)
-
+        bleViewModel.sendMessage(contactAddress, text)
         binding.messageEditText.text?.clear()
     }
 
-    private fun sendViaBle(command: String) {
-        val device = com.punchthrough.blestarterappandroid.ble.ConnectionManager
-            .connectedDevices().firstOrNull() ?: return
-        val services = com.punchthrough.blestarterappandroid.ble.ConnectionManager
-            .servicesOnDevice(device) ?: return
-        val characteristic = services
-            .flatMap { it.characteristics ?: emptyList() }
-            .find { it.uuid == MESSAGE_WRITE_UUID } ?: return
-
-        com.punchthrough.blestarterappandroid.ble.ConnectionManager
-            .writeCharacteristic(device, characteristic, command.toByteArray(Charsets.UTF_8))
+    private fun updateEncryptionStatus() {
+        binding.toolbar.subtitle = when {
+            contactAddress == PUBLIC_CHANNEL_ADDRESS -> "Canal público · Sin cifrado"
+            SessionKeyStore.hasE2eKey(contactAddress) -> "Cifrado extremo a extremo"
+            else -> null
+        }
     }
 }

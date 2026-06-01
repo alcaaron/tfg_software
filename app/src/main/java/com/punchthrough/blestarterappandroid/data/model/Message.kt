@@ -25,7 +25,10 @@ data class Message(
     val id: Long = 0,
 
     val contactAddress: Int,   // dirección del nodo remoto (quién envió o recibió)
-    val content: String,       // el texto del mensaje
+    val content: String,       // el texto del mensaje (siempre en claro — se descifra antes de guardar)
     val timestamp: Long,       // System.currentTimeMillis() en el momento del envío/recepción
-    val isOutgoing: Boolean    // true = lo enviamos nosotros, false = lo recibimos
+    val isOutgoing: Boolean,   // true = lo enviamos nosotros, false = lo recibimos
+
+    // 0 = sin cifrar, 1 = grupo, 2 = E2E node-to-node
+    val encType: Int = 0
 )

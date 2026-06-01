@@ -2,10 +2,15 @@ package com.punchthrough.blestarterappandroid.ui
 
 import android.app.AlertDialog
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Color
 import android.os.Bundle
+import android.util.Base64
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -13,16 +18,20 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.EncodeHintType
+import com.google.zxing.qrcode.QRCodeWriter
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import com.punchthrough.blestarterappandroid.BleViewModel
 import com.punchthrough.blestarterappandroid.ChatActivity
 import com.punchthrough.blestarterappandroid.R
-import com.punchthrough.blestarterappandroid.ble.ConnectionManager
 import com.punchthrough.blestarterappandroid.data.model.Contact
 import com.punchthrough.blestarterappandroid.data.model.Message
 import com.punchthrough.blestarterappandroid.databinding.FragmentChatsBinding
-import java.util.UUID
-
-private val MESSAGE_WRITE_UUID = UUID.fromString("6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
+import com.punchthrough.blestarterappandroid.security.SessionKeyStore
+import java.security.SecureRandom
+import javax.crypto.spec.SecretKeySpec
 
 class ChatsFragment : Fragment() {
 
@@ -30,9 +39,15 @@ class ChatsFragment : Fragment() {
     private val binding get() = _binding!!
     private val bleViewModel: BleViewModel by activityViewModels()
 
+    private val scanLauncher = registerForActivityResult(ScanContract()) { result ->
+        result.contents?.let { handleGroupQrScanned(it) }
+    }
+
     private val adapter = ChatsAdapter { chatItem ->
-        val contactName = chatItem.contact?.name?.takeIf { it.isNotBlank() }
-            ?: "Nodo ${chatItem.lastMessage.contactAddress.toString(16).uppercase()}"
+        val contactName = if (chatItem.isPinned) "Canal Público" else {
+            chatItem.contact?.name?.takeIf { it.isNotBlank() }
+                ?: "Nodo ${"%08x".format(chatItem.lastMessage.contactAddress).uppercase()}"
+        }
         startActivity(
             Intent(requireContext(), ChatActivity::class.java).apply {
                 putExtra(ChatActivity.EXTRA_CONTACT_ADDRESS, chatItem.lastMessage.contactAddress)
@@ -62,15 +77,50 @@ class ChatsFragment : Fragment() {
             bleViewModel.lastMessages.value?.let { buildChatList(it, contacts) }
         }
 
-        binding.newMessageFab.setOnClickListener { showNewMessageDialog() }
+        binding.newMessageFab.setOnClickListener { showChatOptions() }
     }
 
     private fun buildChatList(messages: List<Message>, contacts: List<Contact>) {
         val contactMap = contacts.associateBy { it.address }
-        val chatItems = messages.map { ChatItem(contact = contactMap[it.contactAddress], lastMessage = it) }
+
+        val publicLastMsg = messages.firstOrNull { it.contactAddress == BleViewModel.PUBLIC_CHANNEL_ADDRESS }
+            ?: Message(
+                contactAddress = BleViewModel.PUBLIC_CHANNEL_ADDRESS,
+                content = "",
+                timestamp = 0L,
+                isOutgoing = false
+            )
+        val publicItem = ChatItem(contact = null, lastMessage = publicLastMsg, isPinned = true)
+
+        val regularItems = messages
+            .filter { it.contactAddress != BleViewModel.PUBLIC_CHANNEL_ADDRESS }
+            .map { ChatItem(contact = contactMap[it.contactAddress], lastMessage = it) }
+
+        val chatItems = listOf(publicItem) + regularItems
         adapter.submitList(chatItems)
-        binding.emptyText.visibility = if (chatItems.isEmpty()) View.VISIBLE else View.GONE
-        binding.chatsRecyclerView.visibility = if (chatItems.isEmpty()) View.GONE else View.VISIBLE
+        binding.emptyText.visibility = View.GONE
+        binding.chatsRecyclerView.visibility = View.VISIBLE
+    }
+
+    private fun showChatOptions() {
+        val dialogView = LayoutInflater.from(requireContext())
+            .inflate(R.layout.dialog_new_chat_options, null)
+        val dialog = MaterialAlertDialogBuilder(requireContext())
+            .setView(dialogView)
+            .create()
+        dialogView.findViewById<ImageButton>(R.id.optionSendNode).setOnClickListener {
+            dialog.dismiss()
+            showNewMessageDialog()
+        }
+        dialogView.findViewById<ImageButton>(R.id.optionJoinGroup).setOnClickListener {
+            dialog.dismiss()
+            scanGroupQr()
+        }
+        dialogView.findViewById<ImageButton>(R.id.optionCreateGroup).setOnClickListener {
+            dialog.dismiss()
+            createGroup()
+        }
+        dialog.show()
     }
 
     private fun showNewMessageDialog() {
@@ -95,7 +145,7 @@ class ChatsFragment : Fragment() {
                         val text = messageInput.text.toString().trim()
                         when {
                             address == null || hexText.isEmpty() -> {
-                                addressLayout.error = "Dirección hex inválida (ej: 1A)"
+                                addressLayout.error = "Dirección hex inválida (ej: AABBCCDD)"
                             }
                             text.isEmpty() -> {
                                 addressLayout.error = null
@@ -113,25 +163,77 @@ class ChatsFragment : Fragment() {
             .show()
     }
 
-    private fun sendNewMessage(address: Int, text: String) {
-        val device = ConnectionManager.connectedDevices().firstOrNull()
-        if (device != null) {
-            val characteristic = ConnectionManager.servicesOnDevice(device)
-                ?.flatMap { it.characteristics ?: emptyList() }
-                ?.find { it.uuid == MESSAGE_WRITE_UUID }
-            if (characteristic != null) {
-                ConnectionManager.writeCharacteristic(
-                    device, characteristic,
-                    "AT+SEND=$address,$text\r\n".toByteArray(Charsets.UTF_8)
-                )
-            }
-        }
+    private fun createGroup() {
+        val keyBytes = ByteArray(16).also { SecureRandom().nextBytes(it) }
+        val groupId = SecureRandom().nextInt()
+        SessionKeyStore.storeGroupKey(groupId, SecretKeySpec(keyBytes, "AES"))
+        val qrContent = "A3MESH:GROUP:${"%08x".format(groupId)}:${Base64.encodeToString(keyBytes, Base64.NO_WRAP)}"
+        val qrBitmap = generateQrBitmap(qrContent)
+        showGroupQrDialog(groupId, qrBitmap)
+    }
 
-        bleViewModel.onMessageSent(address, text)
+    private fun generateQrBitmap(content: String, size: Int = 600): Bitmap {
+        val hints = mapOf(EncodeHintType.MARGIN to 1)
+        val matrix = QRCodeWriter().encode(content, BarcodeFormat.QR_CODE, size, size, hints)
+        val pixels = IntArray(size * size)
+        for (y in 0 until size) for (x in 0 until size) {
+            pixels[y * size + x] = if (matrix[x, y]) Color.BLACK else Color.WHITE
+        }
+        return Bitmap.createBitmap(pixels, size, size, Bitmap.Config.RGB_565)
+    }
+
+    private fun showGroupQrDialog(groupId: Int, bitmap: Bitmap) {
+        val padding = (16 * resources.displayMetrics.density).toInt()
+        val imageView = ImageView(requireContext()).apply {
+            setImageBitmap(bitmap)
+            setPadding(padding, padding, padding, 0)
+            adjustViewBounds = true
+        }
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle("Grupo ${"%08x".format(groupId).uppercase()}")
+            .setMessage("Comparte este QR con los miembros del grupo.")
+            .setView(imageView)
+            .setNegativeButton("Cerrar", null)
+            .show()
+    }
+
+    private fun scanGroupQr() {
+        scanLauncher.launch(
+            ScanOptions().apply {
+                setPrompt("Escanea el QR del grupo")
+                setBeepEnabled(false)
+                setOrientationLocked(true)
+            }
+        )
+    }
+
+    private fun handleGroupQrScanned(content: String) {
+        if (!content.startsWith("A3MESH:GROUP:")) {
+            Toast.makeText(requireContext(), "QR no reconocido", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val body = content.removePrefix("A3MESH:GROUP:")
+        val colonIdx = body.indexOf(':')
+        if (colonIdx < 0) return
+        val groupId = body.substring(0, colonIdx).toLongOrNull(16)?.toInt() ?: return
+        val keyBytes = try {
+            Base64.decode(body.substring(colonIdx + 1), Base64.NO_WRAP)
+        } catch (e: Exception) { return }
+        if (keyBytes.size != 16) return
+        SessionKeyStore.storeGroupKey(groupId, SecretKeySpec(keyBytes, "AES"))
+        Toast.makeText(
+            requireContext(),
+            "Grupo ${"%08x".format(groupId).uppercase()} añadido",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    private fun sendNewMessage(address: Int, text: String) {
+        bleViewModel.sendMessage(address, text)
 
         val contactName = bleViewModel.allContacts.value
             ?.find { it.address == address }?.name?.takeIf { it.isNotBlank() }
-            ?: "Nodo ${address.toString(16).uppercase()}"
+            ?: "Nodo ${"%08x".format(address).uppercase()}"
 
         startActivity(
             Intent(requireContext(), ChatActivity::class.java).apply {

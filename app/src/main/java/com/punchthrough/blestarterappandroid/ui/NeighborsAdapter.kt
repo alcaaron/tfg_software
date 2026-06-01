@@ -11,11 +11,14 @@ import com.punchthrough.blestarterappandroid.R
 
 class NeighborsAdapter : ListAdapter<NeighborNode, NeighborsAdapter.ViewHolder>(DiffCallback) {
 
+    var onClick: ((NeighborNode) -> Unit)? = null
+
     class ViewHolder(itemView: android.view.View) : RecyclerView.ViewHolder(itemView) {
-        fun bind(node: NeighborNode) {
+        fun bind(node: NeighborNode, onClick: ((NeighborNode) -> Unit)?) {
             itemView.findViewById<TextView>(R.id.neighborNodeId).text = "Nodo ${node.nodeId}"
             itemView.findViewById<TextView>(R.id.neighborRssi).text = "RSSI: ${node.rssi} dBm"
             itemView.findViewById<TextView>(R.id.neighborT).text = "T: ${node.t}"
+            itemView.setOnClickListener { onClick?.invoke(node) }
         }
     }
 
@@ -25,7 +28,7 @@ class NeighborsAdapter : ListAdapter<NeighborNode, NeighborsAdapter.ViewHolder>(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.bind(getItem(position))
+        holder.bind(getItem(position), onClick)
     }
 
     companion object DiffCallback : DiffUtil.ItemCallback<NeighborNode>() {

@@ -18,13 +18,17 @@
     <!-- Navbar flotante estilo Telegram -->
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottom_nav"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|center_horizontal"
+        android:layout_gravity="bottom"
+        android:layout_marginStart="40dp"
+        android:layout_marginEnd="40dp"
         android:layout_marginBottom="24dp"
         android:background="@drawable/nav_pill_background"
         app:elevation="12dp"
         app:labelVisibilityMode="unlabeled"
+        app:itemIconSize="28dp"
+        app:itemActiveIndicatorStyle="@style/Widget.App.BottomNav.ActiveIndicator"
         app:menu="@menu/bottom_nav_menu" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

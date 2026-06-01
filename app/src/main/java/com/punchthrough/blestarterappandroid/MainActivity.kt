@@ -45,10 +45,50 @@ class MainActivity : AppCompatActivity() {
                     val text = String(value, Charsets.UTF_8).trim()
                     when {
                         text.startsWith("+RCV=") -> {
-                            val parts = text.removePrefix("+RCV=").split(",")
+                            // +RCV=<src_hex>,<dst_hex>,<payload>
+                            // dst == FFFFFFFF means broadcast (public channel)
+                            val parts = text.removePrefix("+RCV=").split(",", limit = 3)
                             if (parts.size == 3) {
-                                parts[0].toIntOrNull()?.let { addr ->
-                                    bleViewModel.onMessageReceived(addr, parts[2])
+                                parts[0].toLongOrNull(16)?.toInt()?.let { addr ->
+                                    if (parts[1].trim().equals("FFFFFFFF", ignoreCase = true)) {
+                                        bleViewModel.onPublicMessageReceived(addr, parts[2])
+                                    } else {
+                                        bleViewModel.onMessageReceived(addr, parts[2])
+                                    }
+                                }
+                            }
+                        }
+                        text.startsWith("+DISC=") -> {
+                            // +DISC=<node_id_hex>  — nuevo vecino descubierto
+                            text.removePrefix("+DISC=").toLongOrNull(16)?.toInt()
+                                ?.let { bleViewModel.onDiscoveryEvent(it) }
+                        }
+                        text.startsWith("+KX=") -> {
+                            // +KX=<src_hex>,<node_id_hex>,<b64_pubkey>
+                            val parts = text.removePrefix("+KX=").split(",", limit = 3)
+                            if (parts.size == 3) {
+                                parts[0].toLongOrNull(16)?.toInt()?.let { src ->
+                                    bleViewModel.onKeyExchangeReceived(src, parts[2])
+                                }
+                            }
+                        }
+                        text.startsWith("+RCVE2E=") -> {
+                            // +RCVE2E=<src_hex>,<node_id_hex>,<b64_cipher>
+                            val parts = text.removePrefix("+RCVE2E=").split(",", limit = 3)
+                            if (parts.size == 3) {
+                                parts[0].toLongOrNull(16)?.toInt()?.let { src ->
+                                    bleViewModel.onE2eMessageReceived(src, parts[2])
+                                }
+                            }
+                        }
+                        text.startsWith("+RCVGRP=") -> {
+                            // +RCVGRP=<group_id_hex>,<src_hex>,<node_id_hex>,<b64_cipher>
+                            val parts = text.removePrefix("+RCVGRP=").split(",", limit = 4)
+                            if (parts.size == 4) {
+                                val groupId = parts[0].toLongOrNull(16)?.toInt()
+                                val src = parts[1].toLongOrNull(16)?.toInt()
+                                if (groupId != null && src != null) {
+                                    bleViewModel.onGroupMessageReceived(groupId, src, parts[3])
                                 }
                             }
                         }
@@ -109,6 +149,12 @@ class MainActivity : AppCompatActivity() {
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
         val navController = navHostFragment.navController
         binding.bottomNav.setupWithNavController(navController)
+
+        bleViewModel.connectedDevice.observe(this) { device ->
+            binding.bottomNav.menu.findItem(R.id.deviceFragment).setIcon(
+                if (device != null) R.drawable.ic_device else R.drawable.ic_device_off
+            )
+        }
     }
 
     override fun onDestroy() {

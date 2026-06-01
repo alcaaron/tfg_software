@@ -11,13 +11,14 @@
         style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Dirección del nodo (hex, ej: 1A)">
+        android:hint="Nodo (8 hex, ej: AABBCCDD)">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/addressEditText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:inputType="textCapCharacters"
+            android:maxLength="8"
             android:maxLines="1"
             android:imeOptions="actionNext"/>
     </com.google.android.material.textfield.TextInputLayout>
