@@ -32,15 +32,18 @@ import timber.log.Timber
 private const val NODE_NAME_PREFIX = "A3MESH_Node"
 
 private val INFO_LABELS = mapOf(
-    "NODEID" to "ID del Nodo",
-    "BATT"   to "Batería (%)",
-    "FW"     to "Firmware",
-    "SF"     to "Spreading Factor",
-    "BW"     to "Ancho de Banda",
-    "CR"     to "Coding Rate",
-    "FREQ"   to "Frecuencia (MHz)",
-    "POWER"  to "Potencia TX (dBm)",
-    "CHANNEL" to "Canal"
+    "NODEID"    to "ID del Nodo",
+    "BATT"      to "Batería (%)",
+    "FWVER"     to "Versión FW",
+    "UPTIME"    to "Tiempo encendido",
+    "FREQ"      to "Frecuencia (MHz)",
+    "SF"        to "Spreading Factor",
+    "NEIGHBORS" to "Vecinos activos",
+    "FW"        to "Firmware",
+    "BW"        to "Ancho de Banda",
+    "CR"        to "Coding Rate",
+    "POWER"     to "Potencia TX (dBm)",
+    "CHANNEL"   to "Canal"
 )
 
 class DeviceFragment : Fragment() {
@@ -116,6 +119,13 @@ class DeviceFragment : Fragment() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (bleViewModel.connectedDevice.value != null) {
+            bleViewModel.sendAtCommand("AT+INFO?\r\n")
+        }
+    }
+
     private fun requestBluetoothPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             permissionLauncher.launch(arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT))
@@ -174,7 +184,12 @@ class DeviceFragment : Fragment() {
     }
 
     private fun updateDeviceInfoDisplay(info: Map<String, String>) {
-        binding.batteryText.text = info["BATT"]?.let { "🔋 $it%" } ?: ""
+        val batteryValue = info["BATT"]
+        binding.batteryText.text = batteryValue?.let { "$it%" } ?: ""
+        binding.batteryText.setCompoundDrawablesRelativeWithIntrinsicBounds(
+            if (batteryValue != null) R.drawable.ic_battery else 0, 0, 0, 0
+        )
+
         binding.deviceInfoContainer.removeAllViews()
         val displayInfo = info.filter { it.key != "BATT" }
         if (displayInfo.isEmpty()) return
@@ -184,7 +199,6 @@ class DeviceFragment : Fragment() {
             row.findViewById<TextView>(R.id.infoLabel).text = INFO_LABELS[key] ?: key
             row.findViewById<TextView>(R.id.infoValue).text = value
             binding.deviceInfoContainer.addView(row)
-            // divider
             val divider = View(requireContext()).apply {
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, 1
@@ -200,7 +214,6 @@ class DeviceFragment : Fragment() {
             }
             binding.deviceInfoContainer.addView(divider)
         }
-        // Remove last divider
         if (binding.deviceInfoContainer.childCount > 0) {
             binding.deviceInfoContainer.removeViewAt(binding.deviceInfoContainer.childCount - 1)
         }

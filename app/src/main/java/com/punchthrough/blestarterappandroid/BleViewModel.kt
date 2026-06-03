@@ -113,7 +113,8 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
             content = content,
             timestamp = System.currentTimeMillis(),
             isOutgoing = false,
-            encType = 0
+            encType = 0,
+            senderAddress = senderAddress
         )
         viewModelScope.launch(Dispatchers.IO) {
             messageDao.insert(message)
@@ -215,7 +216,7 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
 
     /**
      * Llamado cuando llega +RCVGRP=<group_id>,<src>,<node_id>,<b64_cipher>.
-     * Descifra con la clave de grupo y almacena el texto plano en Room.
+     * Descifra con la clave de grupo y almacena el texto plano en Room bajo el groupId.
      */
     fun onGroupMessageReceived(groupId: Int, src: Int, b64Cipher: String) {
         val key = SessionKeyStore.getGroupKey(groupId) ?: run {
@@ -226,15 +227,53 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 val plaintext = CryptoManager.decrypt(key, CryptoManager.fromBase64(b64Cipher))
                     .toString(Charsets.UTF_8)
-                onMessageReceived(src, plaintext, encType = 1)
+                val message = Message(
+                    contactAddress = groupId,
+                    content = plaintext,
+                    timestamp = System.currentTimeMillis(),
+                    isOutgoing = false,
+                    encType = 1
+                )
+                viewModelScope.launch(Dispatchers.IO) {
+                    messageDao.insert(message)
+                    _incomingMessage.postValue(message)
+                }
             } catch (e: Exception) {
                 Timber.e(e, "[CRYPTO] Fallo al descifrar mensaje de grupo 0x${groupId.toHexNodeId()}")
             }
         }
     }
 
+    fun onGroupCreated(groupId: Int, groupName: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            contactDao.insertOrUpdate(Contact(address = groupId, name = groupName))
+            messageDao.insert(Message(
+                contactAddress = groupId,
+                content = "Grupo creado",
+                timestamp = System.currentTimeMillis(),
+                isOutgoing = true
+            ))
+        }
+    }
+
+    fun onGroupJoined(groupId: Int, groupName: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            if (contactDao.getByAddress(groupId) == null) {
+                contactDao.insertOrUpdate(Contact(address = groupId, name = groupName))
+                messageDao.insert(Message(
+                    contactAddress = groupId,
+                    content = "Te has unido al grupo",
+                    timestamp = System.currentTimeMillis(),
+                    isOutgoing = false
+                ))
+            }
+        }
+    }
+
+    fun hasGroupKey(groupId: Int): Boolean = SessionKeyStore.hasGroupKey(groupId)
+
     /**
-     * Envío unificado: usa E2E si hay clave para el destino, sin cifrar si no.
+     * Envío unificado: grupo > E2E > plano.
      * Reemplaza las llamadas directas a sendAtCommand("AT+SEND=...") en la UI.
      */
     fun sendMessage(dst: Int, text: String) {
@@ -243,11 +282,25 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
             onMessageSent(PUBLIC_CHANNEL_ADDRESS, text, encType = 0)
             return
         }
-        val key = SessionKeyStore.getE2eKey(dst)
-        if (key != null) {
+        val groupKey = SessionKeyStore.getGroupKey(dst)
+        if (groupKey != null) {
             viewModelScope.launch(Dispatchers.Default) {
                 try {
-                    val cipher = CryptoManager.encrypt(key, text.toByteArray(Charsets.UTF_8))
+                    val cipher = CryptoManager.encrypt(groupKey, text.toByteArray(Charsets.UTF_8))
+                    sendAtCommand("AT+SENDGRP=${dst.toHexNodeId()},${CryptoManager.toBase64(cipher)}\r\n")
+                    onMessageSent(dst, text, encType = 1)
+                    Timber.d("[CRYPTO] Mensaje de grupo enviado a 0x${dst.toHexNodeId()}")
+                } catch (e: Exception) {
+                    Timber.e(e, "[CRYPTO] Fallo al cifrar mensaje de grupo")
+                }
+            }
+            return
+        }
+        val e2eKey = SessionKeyStore.getE2eKey(dst)
+        if (e2eKey != null) {
+            viewModelScope.launch(Dispatchers.Default) {
+                try {
+                    val cipher = CryptoManager.encrypt(e2eKey, text.toByteArray(Charsets.UTF_8))
                     sendAtCommand("AT+SENDE2E=${dst.toHexNodeId()},${CryptoManager.toBase64(cipher)}\r\n")
                     onMessageSent(dst, text, encType = 2)
                     Timber.d("[CRYPTO] Mensaje E2E enviado a 0x${dst.toHexNodeId()}")

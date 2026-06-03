@@ -50,6 +50,18 @@
         app:layout_constraintTop_toTopOf="@id/contactName"
         app:layout_constraintBaseline_toBaselineOf="@id/contactName"/>
 
+    <!-- Icono de pin para chats fijados -->
+    <ImageView
+        android:id="@+id/pinIcon"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:src="@drawable/ic_pin"
+        android:tint="?attr/colorOnSurfaceVariant"
+        android:visibility="gone"
+        android:contentDescription="@null"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBaseline_toBaselineOf="@id/contactName"/>
+
     <!-- Último mensaje -->
     <TextView
         android:id="@+id/lastMessage"

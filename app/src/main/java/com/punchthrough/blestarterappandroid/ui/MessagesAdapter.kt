@@ -1,6 +1,7 @@
 package com.punchthrough.blestarterappandroid.ui
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -12,7 +13,10 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-class MessagesAdapter : ListAdapter<Message, RecyclerView.ViewHolder>(DiffCallback) {
+class MessagesAdapter(
+    var isPublicChannel: Boolean = false,
+    var onSenderLongClick: ((senderAddress: Int) -> Unit)? = null
+) : ListAdapter<Message, RecyclerView.ViewHolder>(DiffCallback) {
 
     companion object {
         private const val VIEW_TYPE_INCOMING = 0
@@ -27,16 +31,26 @@ class MessagesAdapter : ListAdapter<Message, RecyclerView.ViewHolder>(DiffCallba
     override fun getItemViewType(position: Int) =
         if (getItem(position).isOutgoing) VIEW_TYPE_OUTGOING else VIEW_TYPE_INCOMING
 
-    // ViewHolder para mensajes recibidos
     inner class IncomingViewHolder(private val binding: ItemMessageIncomingBinding) :
         RecyclerView.ViewHolder(binding.root) {
         fun bind(message: Message) {
             binding.messageText.text = message.content
             binding.messageTime.text = formatTime(message.timestamp)
+
+            if (isPublicChannel && message.senderAddress != 0) {
+                binding.senderText.visibility = View.VISIBLE
+                binding.senderText.text = "Nodo ${"0x${"%08X".format(message.senderAddress)}"}"
+                binding.root.setOnLongClickListener {
+                    onSenderLongClick?.invoke(message.senderAddress)
+                    true
+                }
+            } else {
+                binding.senderText.visibility = View.GONE
+                binding.root.setOnLongClickListener(null)
+            }
         }
     }
 
-    // ViewHolder para mensajes enviados
     inner class OutgoingViewHolder(private val binding: ItemMessageOutgoingBinding) :
         RecyclerView.ViewHolder(binding.root) {
         fun bind(message: Message) {

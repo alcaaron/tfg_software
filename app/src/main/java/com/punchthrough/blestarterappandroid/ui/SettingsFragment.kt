@@ -44,7 +44,15 @@ class SettingsFragment : Fragment() {
         }
 
         binding.languageRow.setOnClickListener { showLanguageDialog() }
-        binding.advancedRow.setOnClickListener { showAdvancedDialog() }
+
+        val demoEnabled = prefs.getBoolean("demo_mode", false)
+        binding.demoModeSwitch.isChecked = demoEnabled
+        binding.demoModeRow.setOnClickListener {
+            binding.demoModeSwitch.isChecked = !binding.demoModeSwitch.isChecked
+            val enabled = binding.demoModeSwitch.isChecked
+            prefs.edit().putBoolean("demo_mode", enabled).apply()
+            bleViewModel.sendAtCommand(if (enabled) "AT+DEMO=1\r\n" else "AT+DEMO=0\r\n")
+        }
     }
 
     private fun updateProfileDisplay(name: String) {
@@ -87,55 +95,6 @@ class SettingsFragment : Fragment() {
             .setSingleChoiceItems(languages, current) { dialog, which ->
                 prefs.edit().putInt("language_index", which).apply()
                 dialog.dismiss()
-            }
-            .setNegativeButton("Cancelar", null)
-            .show()
-    }
-
-    private fun showAdvancedDialog() {
-        val sfField = EditText(requireContext()).apply {
-            hint = "Spreading Factor (7-12)"
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
-            setText(prefs.getInt("sf", 10).toString())
-        }
-        val powerField = EditText(requireContext()).apply {
-            hint = "Potencia TX (0-22 dBm)"
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
-            setText(prefs.getInt("power", 22).toString())
-        }
-        val addressField = EditText(requireContext()).apply {
-            hint = "Mi dirección LoRa"
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
-            setText(prefs.getInt("my_address", 1).toString())
-        }
-        val channelField = EditText(requireContext()).apply {
-            hint = "Canal (0-15)"
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
-            setText(prefs.getInt("channel", 0).toString())
-        }
-        val layout = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(48, 16, 48, 0)
-            addView(sfField)
-            addView(powerField)
-            addView(addressField)
-            addView(channelField)
-        }
-        AlertDialog.Builder(requireContext())
-            .setTitle("Configuración avanzada")
-            .setView(layout)
-            .setPositiveButton("Guardar y enviar") { _, _ ->
-                val sf = sfField.text.toString().toIntOrNull() ?: 10
-                val power = powerField.text.toString().toIntOrNull() ?: 22
-                val address = addressField.text.toString().toIntOrNull() ?: 1
-                val channel = channelField.text.toString().toIntOrNull() ?: 0
-                prefs.edit()
-                    .putInt("sf", sf).putInt("power", power)
-                    .putInt("my_address", address).putInt("channel", channel)
-                    .apply()
-                bleViewModel.sendAtCommand("AT+ADDRESS=$address\r\n")
-                bleViewModel.sendAtCommand("AT+CHANNEL=$channel\r\n")
-                bleViewModel.sendAtCommand("AT+CRFOP=$power\r\n")
             }
             .setNegativeButton("Cancelar", null)
             .show()

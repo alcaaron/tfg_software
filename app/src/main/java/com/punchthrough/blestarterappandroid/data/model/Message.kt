@@ -16,6 +16,7 @@
 
 package com.punchthrough.blestarterappandroid.data.model
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -30,5 +31,9 @@ data class Message(
     val isOutgoing: Boolean,   // true = lo enviamos nosotros, false = lo recibimos
 
     // 0 = sin cifrar, 1 = grupo, 2 = E2E node-to-node
-    val encType: Int = 0
+    val encType: Int = 0,
+
+    // Para mensajes del canal público: address del nodo que lo envió (0 = desconocido/saliente)
+    @ColumnInfo(defaultValue = "0")
+    val senderAddress: Int = 0
 )

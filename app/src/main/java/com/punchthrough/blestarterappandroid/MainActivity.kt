@@ -7,6 +7,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.punchthrough.blestarterappandroid.ble.ConnectionEventListener
 import com.punchthrough.blestarterappandroid.ble.ConnectionManager
 import com.punchthrough.blestarterappandroid.ble.isNotifiable
@@ -38,6 +39,13 @@ class MainActivity : AppCompatActivity() {
 
             onDisconnect = {
                 bleViewModel.onDeviceDisconnected()
+                runOnUiThread {
+                    MaterialAlertDialogBuilder(this@MainActivity)
+                        .setTitle("Dispositivo desconectado")
+                        .setMessage("La conexión con el dispositivo BLE se ha perdido.")
+                        .setPositiveButton("Aceptar", null)
+                        .show()
+                }
             }
 
             onCharacteristicChanged = { _, characteristic, value ->
@@ -45,15 +53,16 @@ class MainActivity : AppCompatActivity() {
                     val text = String(value, Charsets.UTF_8).trim()
                     when {
                         text.startsWith("+RCV=") -> {
-                            // +RCV=<src_hex>,<dst_hex>,<payload>
-                            // dst == FFFFFFFF means broadcast (public channel)
-                            val parts = text.removePrefix("+RCV=").split(",", limit = 3)
-                            if (parts.size == 3) {
+                            // +RCV=<src_hex>,<node_id_hex>,<dst_hex>,<payload>
+                            // dst == FFFFFFFF means broadcast → canal público
+                            val parts = text.removePrefix("+RCV=").split(",", limit = 4)
+                            if (parts.size == 4) {
                                 parts[0].toLongOrNull(16)?.toInt()?.let { addr ->
-                                    if (parts[1].trim().equals("FFFFFFFF", ignoreCase = true)) {
-                                        bleViewModel.onPublicMessageReceived(addr, parts[2])
+                                    val dst = parts[2].trim()
+                                    if (dst.uppercase() == "FFFFFFFF") {
+                                        bleViewModel.onPublicMessageReceived(addr, parts[3])
                                     } else {
-                                        bleViewModel.onMessageReceived(addr, parts[2])
+                                        bleViewModel.onMessageReceived(addr, parts[3])
                                     }
                                 }
                             }

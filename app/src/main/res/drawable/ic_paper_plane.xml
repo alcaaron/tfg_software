@@ -3,12 +3,10 @@
     android:height="24dp"
     android:viewportWidth="960"
     android:viewportHeight="960">
-    <!-- Paper airplane body -->
+    <!-- Paper airplane pointing upper-right (diagonal NE).
+         Even-odd fill creates a visible wing-crease cut-out near the nose. -->
     <path
         android:fillColor="@android:color/white"
-        android:pathData="M80,500L880,220L620,500L880,780Z"/>
-    <!-- Wing fold crease -->
-    <path
-        android:fillColor="@android:color/white"
-        android:pathData="M620,500L380,580L380,420Z"/>
+        android:fillType="evenOdd"
+        android:pathData="M80,880 L880,80 L880,880 Z M880,80 L560,480 L600,600 Z"/>
 </vector>

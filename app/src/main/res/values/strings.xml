@@ -29,6 +29,7 @@
     <string name="disconnected">Disconnected</string>
     <string name="disconnected_or_unable_to_connect_to_device">Disconnected or unable to connect to %1$s.</string>
     <string name="ok">OK</string>
+    <string name="refresh_button_label">Actualizar</string>
     
     <string-array name="target_addresses">
         <item>1</item>

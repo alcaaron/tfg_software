@@ -76,6 +76,11 @@ class ChatsFragment : Fragment() {
         bleViewModel.allContacts.observe(viewLifecycleOwner) { contacts ->
             bleViewModel.lastMessages.value?.let { buildChatList(it, contacts) }
         }
+        bleViewModel.keyEstablished.observe(viewLifecycleOwner) {
+            bleViewModel.lastMessages.value?.let { msgs ->
+                buildChatList(msgs, bleViewModel.allContacts.value ?: emptyList())
+            }
+        }
 
         binding.newMessageFab.setOnClickListener { showChatOptions() }
     }
@@ -167,6 +172,8 @@ class ChatsFragment : Fragment() {
         val keyBytes = ByteArray(16).also { SecureRandom().nextBytes(it) }
         val groupId = SecureRandom().nextInt()
         SessionKeyStore.storeGroupKey(groupId, SecretKeySpec(keyBytes, "AES"))
+        val groupName = "Grupo ${"%08x".format(groupId).uppercase()}"
+        bleViewModel.onGroupCreated(groupId, groupName)
         val qrContent = "A3MESH:GROUP:${"%08x".format(groupId)}:${Base64.encodeToString(keyBytes, Base64.NO_WRAP)}"
         val qrBitmap = generateQrBitmap(qrContent)
         showGroupQrDialog(groupId, qrBitmap)
@@ -221,11 +228,9 @@ class ChatsFragment : Fragment() {
         } catch (e: Exception) { return }
         if (keyBytes.size != 16) return
         SessionKeyStore.storeGroupKey(groupId, SecretKeySpec(keyBytes, "AES"))
-        Toast.makeText(
-            requireContext(),
-            "Grupo ${"%08x".format(groupId).uppercase()} añadido",
-            Toast.LENGTH_SHORT
-        ).show()
+        val groupName = "Grupo ${"%08x".format(groupId).uppercase()}"
+        bleViewModel.onGroupJoined(groupId, groupName)
+        Toast.makeText(requireContext(), "$groupName añadido", Toast.LENGTH_SHORT).show()
     }
 
     private fun sendNewMessage(address: Int, text: String) {

@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
+import android.os.CountDownTimer
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -30,6 +31,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 private const val NEIGHBORS_REFRESH_INTERVAL_MS = 30_000L
+private const val NEIGHBORS_COOLDOWN_MS = 3000L
 
 class ContactsFragment : Fragment() {
 
@@ -74,6 +76,7 @@ class ContactsFragment : Fragment() {
 
     private var neighborsExpanded = true
     private var contactsExpanded = true
+    private var neighborsCooldownTimer: CountDownTimer? = null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentContactsBinding.inflate(inflater, container, false)
@@ -112,6 +115,7 @@ class ContactsFragment : Fragment() {
         // Manual refresh
         binding.refreshNeighborsButton.setOnClickListener {
             bleViewModel.sendAtCommand("AT+NEIGHBORS?\r\n")
+            startNeighborsCooldown()
         }
 
         // Add contact FAB
@@ -144,6 +148,21 @@ class ContactsFragment : Fragment() {
                 }
             }
         }
+    }
+
+    private fun startNeighborsCooldown() {
+        binding.refreshNeighborsButton.isEnabled = false
+        binding.refreshNeighborsButton.text = "3s"
+        neighborsCooldownTimer?.cancel()
+        neighborsCooldownTimer = object : CountDownTimer(NEIGHBORS_COOLDOWN_MS, 1000) {
+            override fun onTick(millisUntilFinished: Long) {
+                binding.refreshNeighborsButton.text = "${millisUntilFinished / 1000}s"
+            }
+            override fun onFinish() {
+                binding.refreshNeighborsButton.isEnabled = true
+                binding.refreshNeighborsButton.text = getString(R.string.refresh_button_label)
+            }
+        }.start()
     }
 
     private fun showAddDialog() {
@@ -255,6 +274,7 @@ class ContactsFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        neighborsCooldownTimer?.cancel()
         super.onDestroyView()
         _binding = null
     }
