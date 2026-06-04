@@ -1,17 +1,18 @@
 package com.punchthrough.blestarterappandroid.ui
 
-import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Bitmap
-import android.graphics.Color
 import android.os.Bundle
-import android.util.Base64
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageButton
+import android.view.animation.OvershootInterpolator
+import android.widget.EditText
 import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -19,8 +20,8 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import com.google.zxing.BarcodeFormat
-import com.google.zxing.EncodeHintType
-import com.google.zxing.qrcode.QRCodeWriter
+import com.google.zxing.MultiFormatWriter
+import com.journeyapps.barcodescanner.BarcodeEncoder
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import com.punchthrough.blestarterappandroid.BleViewModel
@@ -29,9 +30,6 @@ import com.punchthrough.blestarterappandroid.R
 import com.punchthrough.blestarterappandroid.data.model.Contact
 import com.punchthrough.blestarterappandroid.data.model.Message
 import com.punchthrough.blestarterappandroid.databinding.FragmentChatsBinding
-import com.punchthrough.blestarterappandroid.security.SessionKeyStore
-import java.security.SecureRandom
-import javax.crypto.spec.SecretKeySpec
 
 class ChatsFragment : Fragment() {
 
@@ -39,18 +37,25 @@ class ChatsFragment : Fragment() {
     private val binding get() = _binding!!
     private val bleViewModel: BleViewModel by activityViewModels()
 
+    private var isFabMenuOpen = false
+    private val ANIM_DURATION = 180L
+
     private val scanLauncher = registerForActivityResult(ScanContract()) { result ->
-        result.contents?.let { handleGroupQrScanned(it) }
+        result.contents?.let { handleGroupCode(it) }
     }
 
     private val adapter = ChatsAdapter { chatItem ->
-        val contactName = if (chatItem.isPinned) "Canal Público" else {
-            chatItem.contact?.name?.takeIf { it.isNotBlank() }
-                ?: "Nodo ${"%08x".format(chatItem.lastMessage.contactAddress).uppercase()}"
+        closeFabMenu()
+        val address = chatItem.lastMessage.contactAddress
+        val contactName = when {
+            chatItem.isPinned -> "Canal Público"
+            chatItem.isGroup -> chatItem.groupName?.takeIf { it.isNotBlank() } ?: "Grupo"
+            else -> chatItem.contact?.name?.takeIf { it.isNotBlank() }
+                ?: "Nodo ${"%08x".format(address).uppercase()}"
         }
         startActivity(
             Intent(requireContext(), ChatActivity::class.java).apply {
-                putExtra(ChatActivity.EXTRA_CONTACT_ADDRESS, chatItem.lastMessage.contactAddress)
+                putExtra(ChatActivity.EXTRA_CONTACT_ADDRESS, address)
                 putExtra(ChatActivity.EXTRA_CONTACT_NAME, contactName)
             }
         )
@@ -67,6 +72,14 @@ class ChatsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // Start all speed-dial rows scaled to zero
+        listOf(binding.speedDialCreateRow, binding.speedDialJoinRow, binding.speedDialMessageRow)
+            .forEach { row ->
+                row.scaleX = 0f
+                row.scaleY = 0f
+                row.alpha = 0f
+            }
+
         binding.chatsRecyclerView.layoutManager = LinearLayoutManager(requireContext())
         binding.chatsRecyclerView.adapter = adapter
 
@@ -76,59 +89,81 @@ class ChatsFragment : Fragment() {
         bleViewModel.allContacts.observe(viewLifecycleOwner) { contacts ->
             bleViewModel.lastMessages.value?.let { buildChatList(it, contacts) }
         }
-        bleViewModel.keyEstablished.observe(viewLifecycleOwner) {
-            bleViewModel.lastMessages.value?.let { msgs ->
-                buildChatList(msgs, bleViewModel.allContacts.value ?: emptyList())
-            }
-        }
 
-        binding.newMessageFab.setOnClickListener { showChatOptions() }
+        binding.newMessageFab.setOnClickListener {
+            if (isFabMenuOpen) closeFabMenu() else openFabMenu()
+        }
+        binding.fabOverlay.setOnClickListener { closeFabMenu() }
+        binding.miniFabNewMessage.setOnClickListener { closeFabMenu(); showDirectMessageDialog() }
+        binding.miniFabCreateGroup.setOnClickListener { closeFabMenu(); showCreateGroupDialog() }
+        binding.miniFabJoinGroup.setOnClickListener { closeFabMenu(); showJoinGroupOptions() }
+
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    if (isFabMenuOpen) {
+                        closeFabMenu()
+                    } else {
+                        isEnabled = false
+                        requireActivity().onBackPressedDispatcher.onBackPressed()
+                    }
+                }
+            })
     }
 
-    private fun buildChatList(messages: List<Message>, contacts: List<Contact>) {
-        val contactMap = contacts.associateBy { it.address }
+    // ── Speed dial animation ──────────────────────────────────────────────────
 
-        val publicLastMsg = messages.firstOrNull { it.contactAddress == BleViewModel.PUBLIC_CHANNEL_ADDRESS }
-            ?: Message(
-                contactAddress = BleViewModel.PUBLIC_CHANNEL_ADDRESS,
-                content = "",
-                timestamp = 0L,
-                isOutgoing = false
-            )
-        val publicItem = ChatItem(contact = null, lastMessage = publicLastMsg, isPinned = true)
+    private fun openFabMenu() {
+        isFabMenuOpen = true
+        binding.newMessageFab.setImageResource(R.drawable.ic_close)
 
-        val regularItems = messages
-            .filter { it.contactAddress != BleViewModel.PUBLIC_CHANNEL_ADDRESS }
-            .map { ChatItem(contact = contactMap[it.contactAddress], lastMessage = it) }
+        binding.fabOverlay.visibility = View.VISIBLE
+        binding.fabOverlay.animate().alpha(1f).setDuration(ANIM_DURATION).start()
 
-        val chatItems = listOf(publicItem) + regularItems
-        adapter.submitList(chatItems)
-        binding.emptyText.visibility = View.GONE
-        binding.chatsRecyclerView.visibility = View.VISIBLE
+        binding.speedDialContainer.visibility = View.VISIBLE
+        // Bottom row first (smallest delay), then upward
+        animateRowIn(binding.speedDialMessageRow, 0)
+        animateRowIn(binding.speedDialJoinRow, 60)
+        animateRowIn(binding.speedDialCreateRow, 120)
     }
 
-    private fun showChatOptions() {
-        val dialogView = LayoutInflater.from(requireContext())
-            .inflate(R.layout.dialog_new_chat_options, null)
-        val dialog = MaterialAlertDialogBuilder(requireContext())
-            .setView(dialogView)
-            .create()
-        dialogView.findViewById<ImageButton>(R.id.optionSendNode).setOnClickListener {
-            dialog.dismiss()
-            showNewMessageDialog()
+    private fun closeFabMenu() {
+        if (!isFabMenuOpen) return
+        isFabMenuOpen = false
+        binding.newMessageFab.setImageResource(R.drawable.ic_new_chat)
+
+        binding.fabOverlay.animate().alpha(0f).setDuration(ANIM_DURATION)
+            .withEndAction { binding.fabOverlay.visibility = View.GONE }.start()
+
+        // Top row out first, then downward
+        animateRowOut(binding.speedDialCreateRow, 0)
+        animateRowOut(binding.speedDialJoinRow, 40)
+        animateRowOut(binding.speedDialMessageRow, 80) {
+            binding.speedDialContainer.visibility = View.INVISIBLE
         }
-        dialogView.findViewById<ImageButton>(R.id.optionJoinGroup).setOnClickListener {
-            dialog.dismiss()
-            scanGroupQr()
-        }
-        dialogView.findViewById<ImageButton>(R.id.optionCreateGroup).setOnClickListener {
-            dialog.dismiss()
-            createGroup()
-        }
-        dialog.show()
     }
 
-    private fun showNewMessageDialog() {
+    private fun animateRowIn(row: View, delayMs: Long) {
+        row.animate()
+            .scaleX(1f).scaleY(1f).alpha(1f)
+            .setStartDelay(delayMs)
+            .setDuration(ANIM_DURATION)
+            .setInterpolator(OvershootInterpolator(1.4f))
+            .start()
+    }
+
+    private fun animateRowOut(row: View, delayMs: Long, onEnd: (() -> Unit)? = null) {
+        row.animate()
+            .scaleX(0f).scaleY(0f).alpha(0f)
+            .setStartDelay(delayMs)
+            .setDuration(130)
+            .withEndAction { onEnd?.invoke() }
+            .start()
+    }
+
+    // ── Direct message dialog (existing behaviour) ────────────────────────────
+
+    private fun showDirectMessageDialog() {
         val dialogView = LayoutInflater.from(requireContext())
             .inflate(R.layout.dialog_new_message, null)
         val addressLayout = dialogView.findViewById<TextInputLayout>(R.id.addressInputLayout)
@@ -143,15 +178,14 @@ class ChatsFragment : Fragment() {
             .create()
             .also { dialog ->
                 dialog.setOnShowListener {
-                    dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                    dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                         val hexText = addressInput.text.toString().trim()
                             .removePrefix("0x").removePrefix("0X")
                         val address = hexText.toIntOrNull(16)
                         val text = messageInput.text.toString().trim()
                         when {
-                            address == null || hexText.isEmpty() -> {
+                            address == null || hexText.isEmpty() ->
                                 addressLayout.error = "Dirección hex inválida (ej: AABBCCDD)"
-                            }
                             text.isEmpty() -> {
                                 addressLayout.error = null
                                 Toast.makeText(requireContext(), "Escribe un mensaje", Toast.LENGTH_SHORT).show()
@@ -159,7 +193,11 @@ class ChatsFragment : Fragment() {
                             else -> {
                                 addressLayout.error = null
                                 dialog.dismiss()
-                                sendNewMessage(address, text)
+                                bleViewModel.sendMessage(address, text)
+                                val name = bleViewModel.allContacts.value
+                                    ?.find { it.address == address }?.name?.takeIf { it.isNotBlank() }
+                                    ?: "Nodo ${"%08x".format(address).uppercase()}"
+                                openChat(address, name)
                             }
                         }
                     }
@@ -168,84 +206,174 @@ class ChatsFragment : Fragment() {
             .show()
     }
 
-    private fun createGroup() {
-        val keyBytes = ByteArray(16).also { SecureRandom().nextBytes(it) }
-        val groupId = SecureRandom().nextInt()
-        SessionKeyStore.storeGroupKey(groupId, SecretKeySpec(keyBytes, "AES"))
-        val groupName = "Grupo ${"%08x".format(groupId).uppercase()}"
-        bleViewModel.onGroupCreated(groupId, groupName)
-        val qrContent = "A3MESH:GROUP:${"%08x".format(groupId)}:${Base64.encodeToString(keyBytes, Base64.NO_WRAP)}"
-        val qrBitmap = generateQrBitmap(qrContent)
-        showGroupQrDialog(groupId, qrBitmap)
-    }
+    // ── Create group ──────────────────────────────────────────────────────────
 
-    private fun generateQrBitmap(content: String, size: Int = 600): Bitmap {
-        val hints = mapOf(EncodeHintType.MARGIN to 1)
-        val matrix = QRCodeWriter().encode(content, BarcodeFormat.QR_CODE, size, size, hints)
-        val pixels = IntArray(size * size)
-        for (y in 0 until size) for (x in 0 until size) {
-            pixels[y * size + x] = if (matrix[x, y]) Color.BLACK else Color.WHITE
-        }
-        return Bitmap.createBitmap(pixels, size, size, Bitmap.Config.RGB_565)
-    }
-
-    private fun showGroupQrDialog(groupId: Int, bitmap: Bitmap) {
-        val padding = (16 * resources.displayMetrics.density).toInt()
-        val imageView = ImageView(requireContext()).apply {
-            setImageBitmap(bitmap)
-            setPadding(padding, padding, padding, 0)
-            adjustViewBounds = true
-        }
+    private fun showCreateGroupDialog() {
+        val editText = EditText(requireContext()).apply { hint = "Nombre del grupo" }
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Grupo ${"%08x".format(groupId).uppercase()}")
-            .setMessage("Comparte este QR con los miembros del grupo.")
-            .setView(imageView)
-            .setNegativeButton("Cerrar", null)
+            .setTitle("Crear grupo")
+            .setView(LinearLayout(requireContext()).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(48, 16, 48, 0)
+                addView(editText)
+            })
+            .setPositiveButton("Crear") { _, _ ->
+                val name = editText.text.toString().trim().ifBlank { "Grupo" }
+                val groupId = bleViewModel.createGroup(name)
+                showGroupQrDialog(groupId, name)
+            }
+            .setNegativeButton("Cancelar", null)
             .show()
     }
 
-    private fun scanGroupQr() {
-        scanLauncher.launch(
-            ScanOptions().apply {
-                setPrompt("Escanea el QR del grupo")
-                setBeepEnabled(false)
-                setOrientationLocked(true)
-            }
+    private fun showGroupQrDialog(groupId: Int, name: String) {
+        val code = bleViewModel.groupCode(groupId)
+        val qrBitmap = generateQrBitmap(code)
+
+        val dialogView = LayoutInflater.from(requireContext()).inflate(
+            android.R.layout.simple_list_item_2, null
         )
+
+        val layout = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 24, 48, 16)
+        }
+        if (qrBitmap != null) {
+            layout.addView(ImageView(requireContext()).apply {
+                setImageBitmap(qrBitmap)
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, 480
+                )
+                scaleType = ImageView.ScaleType.FIT_CENTER
+            })
+        }
+        layout.addView(TextView(requireContext()).apply {
+            text = "Comparte este código con los otros nodos:"
+            setPadding(0, 16, 0, 8)
+            textSize = 13f
+        })
+        layout.addView(TextView(requireContext()).apply {
+            text = code
+            textSize = 11f
+            setTextIsSelectable(true)
+        })
+
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle("Grupo creado: $name")
+            .setView(layout)
+            .setPositiveButton("Ir al chat") { _, _ ->
+                openChat(groupId, name)
+            }
+            .setNegativeButton("Cerrar") { _, _ ->
+                openChat(groupId, name)
+            }
+            .show()
     }
 
-    private fun handleGroupQrScanned(content: String) {
-        if (!content.startsWith("A3MESH:GROUP:")) {
-            Toast.makeText(requireContext(), "QR no reconocido", Toast.LENGTH_SHORT).show()
+    // ── Join group ────────────────────────────────────────────────────────────
+
+    private fun showJoinGroupOptions() {
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle("Unirse a grupo")
+            .setItems(arrayOf("Escanear código QR", "Introducir código manualmente")) { _, which ->
+                when (which) {
+                    0 -> launchQrScanner()
+                    1 -> showJoinByCodeDialog()
+                }
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun launchQrScanner() {
+        val options = ScanOptions().apply {
+            setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+            setPrompt("Escanea el código QR del grupo")
+            setBeepEnabled(false)
+            setBarcodeImageEnabled(false)
+        }
+        scanLauncher.launch(options)
+    }
+
+    private fun showJoinByCodeDialog() {
+        val editText = EditText(requireContext()).apply {
+            hint = "a3g:GGGGGGGG:KKKK...KKK:nombre"
+        }
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle("Introducir código de grupo")
+            .setView(LinearLayout(requireContext()).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(48, 16, 48, 0)
+                addView(editText)
+            })
+            .setPositiveButton("Unirse") { _, _ ->
+                handleGroupCode(editText.text.toString().trim())
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun handleGroupCode(code: String) {
+        val parsed = bleViewModel.parseGroupCode(code)
+        if (parsed == null) {
+            Toast.makeText(requireContext(), "Código de grupo inválido", Toast.LENGTH_SHORT).show()
             return
         }
-        val body = content.removePrefix("A3MESH:GROUP:")
-        val colonIdx = body.indexOf(':')
-        if (colonIdx < 0) return
-        val groupId = body.substring(0, colonIdx).toLongOrNull(16)?.toInt() ?: return
-        val keyBytes = try {
-            Base64.decode(body.substring(colonIdx + 1), Base64.NO_WRAP)
-        } catch (e: Exception) { return }
-        if (keyBytes.size != 16) return
-        SessionKeyStore.storeGroupKey(groupId, SecretKeySpec(keyBytes, "AES"))
-        val groupName = "Grupo ${"%08x".format(groupId).uppercase()}"
-        bleViewModel.onGroupJoined(groupId, groupName)
-        Toast.makeText(requireContext(), "$groupName añadido", Toast.LENGTH_SHORT).show()
+        val (groupId, key, name) = parsed
+        bleViewModel.joinGroup(groupId, name, key)
+        Toast.makeText(requireContext(), "Unido a \"$name\"", Toast.LENGTH_SHORT).show()
+        openChat(groupId, name)
     }
 
-    private fun sendNewMessage(address: Int, text: String) {
-        bleViewModel.sendMessage(address, text)
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
-        val contactName = bleViewModel.allContacts.value
-            ?.find { it.address == address }?.name?.takeIf { it.isNotBlank() }
-            ?: "Nodo ${"%08x".format(address).uppercase()}"
-
+    private fun openChat(address: Int, name: String) {
         startActivity(
             Intent(requireContext(), ChatActivity::class.java).apply {
                 putExtra(ChatActivity.EXTRA_CONTACT_ADDRESS, address)
-                putExtra(ChatActivity.EXTRA_CONTACT_NAME, contactName)
+                putExtra(ChatActivity.EXTRA_CONTACT_NAME, name)
             }
         )
+    }
+
+    private fun generateQrBitmap(content: String, size: Int = 512): Bitmap? {
+        return try {
+            val matrix = MultiFormatWriter().encode(content, BarcodeFormat.QR_CODE, size, size)
+            BarcodeEncoder().createBitmap(matrix)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun buildChatList(messages: List<Message>, contacts: List<Contact>) {
+        val contactMap = contacts.associateBy { it.address }
+        val groupIdSet = bleViewModel.keyStore.getAllGroupIds().toSet()
+
+        val publicLastMsg = messages.firstOrNull { it.contactAddress == BleViewModel.PUBLIC_CHANNEL_ADDRESS }
+            ?: Message(
+                contactAddress = BleViewModel.PUBLIC_CHANNEL_ADDRESS,
+                content = "",
+                timestamp = 0L,
+                isOutgoing = false
+            )
+        val publicItem = ChatItem(contact = null, lastMessage = publicLastMsg, isPinned = true)
+
+        val regularItems = messages
+            .filter { it.contactAddress != BleViewModel.PUBLIC_CHANNEL_ADDRESS }
+            .map { msg ->
+                val address = msg.contactAddress
+                val isGroup = address in groupIdSet
+                ChatItem(
+                    contact = if (isGroup) null else contactMap[address],
+                    lastMessage = msg,
+                    isGroup = isGroup,
+                    groupName = if (isGroup) bleViewModel.keyStore.getGroupName(address) else null
+                )
+            }
+
+        adapter.submitList(listOf(publicItem) + regularItems)
+        binding.emptyText.visibility = View.GONE
+        binding.chatsRecyclerView.visibility = View.VISIBLE
     }
 
     override fun onDestroyView() {

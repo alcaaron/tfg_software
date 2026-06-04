@@ -8,14 +8,16 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.punchthrough.blestarterappandroid.ble.ConnectionManager
+import com.punchthrough.blestarterappandroid.crypto.A3MeshKeyStore
+import com.punchthrough.blestarterappandroid.crypto.EcdhHelper
+import com.punchthrough.blestarterappandroid.crypto.HkdfSha256
+import com.punchthrough.blestarterappandroid.crypto.NetworkKeyManager
 import com.punchthrough.blestarterappandroid.data.database.AppDatabase
 import com.punchthrough.blestarterappandroid.data.model.Contact
 import com.punchthrough.blestarterappandroid.data.model.Message
-import com.punchthrough.blestarterappandroid.security.CryptoManager
-import com.punchthrough.blestarterappandroid.security.SessionKeyStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import timber.log.Timber
+import java.security.SecureRandom
 import java.util.UUID
 
 data class NeighborNode(val nodeId: String, val rssi: String, val t: String)
@@ -28,10 +30,11 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
         const val PUBLIC_CHANNEL_ADDRESS = 0
     }
 
-    // Base de datos
     private val db = AppDatabase.getInstance(app)
     private val messageDao = db.messageDao()
     private val contactDao = db.contactDao()
+
+    val keyStore = A3MeshKeyStore(app)
 
     private val _connectedDevice = MutableLiveData<BluetoothDevice?>(null)
     val connectedDevice: LiveData<BluetoothDevice?> = _connectedDevice
@@ -48,11 +51,6 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
     private val _neighbors = MutableLiveData<List<NeighborNode>>(emptyList())
     val neighbors: LiveData<List<NeighborNode>> = _neighbors
 
-    // Fires with the nodeId whenever a new E2E session key is established.
-    // UI can observe this to update the lock icon in ChatActivity.
-    private val _keyEstablished = MutableLiveData<Int>()
-    val keyEstablished: LiveData<Int> = _keyEstablished
-
     val allContacts: LiveData<List<Contact>> = contactDao.getAllContacts()
     val lastMessages: LiveData<List<Message>> = messageDao.getLastMessagePerContact()
 
@@ -60,6 +58,7 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
     fun onDeviceConnected(device: BluetoothDevice) {
         _connectedDevice.postValue(device)
         _connectionStatus.postValue("Conectado a ${device.name ?: device.address}")
+        reprovisionAllKeys()
     }
 
     fun onDeviceDisconnected() {
@@ -67,7 +66,6 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
         _connectionStatus.postValue("Desconectado")
         _deviceInfo.postValue(emptyMap())
         _neighbors.postValue(emptyList())
-        SessionKeyStore.clearAll()
     }
 
     fun onDeviceInfoReceived(info: Map<String, String>) {
@@ -86,20 +84,16 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
         ConnectionManager.writeCharacteristic(device, characteristic, command.toByteArray(Charsets.UTF_8))
     }
 
-    // Llama a esto cuando llegue un mensaje del módulo LoRa (cualquier tipo).
-    // El contenido siempre llega ya descifrado — la capa de seguridad descifra antes de llamar aquí.
-    fun onMessageReceived(senderAddress: Int, content: String, encType: Int = 0) {
+    fun onMessageReceived(senderAddress: Int, content: String) {
         val message = Message(
             contactAddress = senderAddress,
             content = content,
             timestamp = System.currentTimeMillis(),
-            isOutgoing = false,
-            encType = encType
+            isOutgoing = false
         )
         viewModelScope.launch(Dispatchers.IO) {
             messageDao.insert(message)
             _incomingMessage.postValue(message)
-
             val contact = contactDao.getByAddress(senderAddress)
             if (contact != null) {
                 contactDao.insertOrUpdate(contact.copy(lastSeen = System.currentTimeMillis()))
@@ -113,7 +107,6 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
             content = content,
             timestamp = System.currentTimeMillis(),
             isOutgoing = false,
-            encType = 0,
             senderAddress = senderAddress
         )
         viewModelScope.launch(Dispatchers.IO) {
@@ -122,131 +115,147 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun onMessageSent(recipientAddress: Int, content: String, encType: Int = 0) {
+    fun onGroupMessageReceived(groupId: Int, senderAddress: Int, content: String) {
+        val message = Message(
+            contactAddress = groupId,
+            content = content,
+            timestamp = System.currentTimeMillis(),
+            isOutgoing = false,
+            senderAddress = senderAddress
+        )
+        viewModelScope.launch(Dispatchers.IO) {
+            messageDao.insert(message)
+            _incomingMessage.postValue(message)
+        }
+    }
+
+    fun onMessageSent(recipientAddress: Int, content: String) {
         val message = Message(
             contactAddress = recipientAddress,
             content = content,
             timestamp = System.currentTimeMillis(),
-            isOutgoing = true,
-            encType = encType
+            isOutgoing = true
         )
         viewModelScope.launch(Dispatchers.IO) {
             messageDao.insert(message)
         }
     }
 
-    // -------------------------------------------------------
-    // Capa de seguridad — ECDH + AES-128-GCM
-    // -------------------------------------------------------
-
-    /** True si hay una clave E2E establecida para este nodo. */
-    fun hasE2eKey(nodeId: Int): Boolean = SessionKeyStore.hasE2eKey(nodeId)
-
-    /**
-     * Llamado cuando llega +DISC=<node_id>.
-     * Inicia el handshake ECDH si aún no tenemos clave para ese nodo.
-     */
-    fun onDiscoveryEvent(nodeId: Int) {
-        if (SessionKeyStore.hasE2eKey(nodeId) || SessionKeyStore.hasPendingKeyPair(nodeId)) return
-        viewModelScope.launch(Dispatchers.Default) {
-            try {
-                val kp = CryptoManager.generateKeyPair()
-                SessionKeyStore.storePendingKeyPair(nodeId, kp)
-                val pubB64 = CryptoManager.pubKeyToBase64(kp.public)
-                sendAtCommand("AT+SENDKX=${nodeId.toHexNodeId()},$pubB64\r\n")
-                Timber.d("[CRYPTO] KX iniciado con 0x${nodeId.toHexNodeId()}")
-            } catch (e: Exception) {
-                Timber.e(e, "[CRYPTO] Error generando KeyPair para 0x${nodeId.toHexNodeId()}")
-            }
-        }
-    }
-
-    /**
-     * Llamado cuando llega +KX=<src>,<node_id>,<b64_pubkey>.
-     * Si somos los iniciadores (tenemos un pendingKeyPair) → derivamos clave y listo.
-     * Si somos los respondedores → derivamos clave y enviamos nuestra pubkey de vuelta.
-     */
-    fun onKeyExchangeReceived(src: Int, b64PubKey: String) {
-        viewModelScope.launch(Dispatchers.Default) {
-            try {
-                val remotePubBytes = CryptoManager.fromBase64(b64PubKey)
-                val pendingKp = SessionKeyStore.consumePendingKeyPair(src)
-
-                if (pendingKp != null) {
-                    // Somos el iniciador: esta es la respuesta del remoto
-                    val shared = CryptoManager.computeSharedSecret(pendingKp.private, remotePubBytes)
-                    SessionKeyStore.storeE2eKey(src, CryptoManager.deriveAesKey(shared))
-                    _keyEstablished.postValue(src)
-                    Timber.d("[CRYPTO] Clave E2E establecida con 0x${src.toHexNodeId()} (iniciador)")
+    fun sendMessage(dst: Int, text: String) {
+        when {
+            dst == PUBLIC_CHANNEL_ADDRESS -> {
+                if (keyStore.hasNetMasterSecret()) {
+                    sendAtCommand("AT+SENDNET=ffffffff,$text\r\n")
                 } else {
-                    // Somos el respondedor: derivamos clave y respondemos con nuestra pubkey
-                    val kp = CryptoManager.generateKeyPair()
-                    val shared = CryptoManager.computeSharedSecret(kp.private, remotePubBytes)
-                    SessionKeyStore.storeE2eKey(src, CryptoManager.deriveAesKey(shared))
-                    _keyEstablished.postValue(src)
-                    val myPubB64 = CryptoManager.pubKeyToBase64(kp.public)
-                    sendAtCommand("AT+SENDKX=${src.toHexNodeId()},$myPubB64\r\n")
-                    Timber.d("[CRYPTO] Clave E2E establecida con 0x${src.toHexNodeId()} (respondedor)")
+                    sendAtCommand("AT+SEND=ffffffff,$text\r\n")
                 }
-            } catch (e: Exception) {
-                Timber.e(e, "[CRYPTO] Fallo en key exchange con 0x${src.toHexNodeId()}")
             }
+            keyStore.hasGroupKey(dst) -> {
+                sendAtCommand("AT+SENDGRP=${dst.hexId},$text\r\n")
+            }
+            keyStore.hasPeerKey(dst) -> {
+                sendAtCommand("AT+SENDE2E=${dst.hexId},$text\r\n")
+            }
+            else -> {
+                sendAtCommand("AT+SEND=${dst.hexId},$text\r\n")
+                initiateKeyExchange(dst)
+            }
+        }
+        onMessageSent(dst, text)
+    }
+
+    // ── Key exchange ──────────────────────────────────────────────────────────
+
+    fun initiateKeyExchange(nodeId: Int) {
+        if (keyStore.hasPendingKeyExchange(nodeId) || keyStore.hasPeerKey(nodeId)) return
+        viewModelScope.launch(Dispatchers.Default) {
+            val pair = EcdhHelper.generateKeyPair()
+            val rawPub = EcdhHelper.publicKeyToRaw(pair.public)
+            keyStore.setPendingPrivateKey(nodeId, EcdhHelper.privateKeyToBytes(pair.private))
+            val pubHex = rawPub.toHex()
+            sendAtCommand("AT+SENDKX=${nodeId.hexId},$pubHex\r\n")
         }
     }
 
-    /**
-     * Llamado cuando llega +RCVE2E=<src>,<node_id>,<b64_cipher>.
-     * Descifra con la clave E2E de src y almacena el texto plano en Room.
-     */
-    fun onE2eMessageReceived(src: Int, b64Cipher: String) {
-        val key = SessionKeyStore.getE2eKey(src) ?: run {
-            Timber.w("[CRYPTO] Sin clave E2E para 0x${src.toHexNodeId()}, mensaje descartado")
-            return
-        }
+    fun onKeyExchangeReceived(src: Int, pubKeyHex: String) {
+        if (pubKeyHex.length != 128) return
         viewModelScope.launch(Dispatchers.Default) {
-            try {
-                val plaintext = CryptoManager.decrypt(key, CryptoManager.fromBase64(b64Cipher))
-                    .toString(Charsets.UTF_8)
-                onMessageReceived(src, plaintext, encType = 2)
-            } catch (e: Exception) {
-                Timber.e(e, "[CRYPTO] Fallo al descifrar E2E de 0x${src.toHexNodeId()}")
-            }
-        }
-    }
+            runCatching {
+                val peerRaw = pubKeyHex.fromHex()
+                val peerPubKey = EcdhHelper.rawToPublicKey(peerRaw)
 
-    /**
-     * Llamado cuando llega +RCVGRP=<group_id>,<src>,<node_id>,<b64_cipher>.
-     * Descifra con la clave de grupo y almacena el texto plano en Room bajo el groupId.
-     */
-    fun onGroupMessageReceived(groupId: Int, src: Int, b64Cipher: String) {
-        val key = SessionKeyStore.getGroupKey(groupId) ?: run {
-            Timber.w("[CRYPTO] Sin clave para grupo 0x${groupId.toHexNodeId()}, mensaje descartado")
-            return
-        }
-        viewModelScope.launch(Dispatchers.Default) {
-            try {
-                val plaintext = CryptoManager.decrypt(key, CryptoManager.fromBase64(b64Cipher))
-                    .toString(Charsets.UTF_8)
-                val message = Message(
-                    contactAddress = groupId,
-                    content = plaintext,
-                    timestamp = System.currentTimeMillis(),
-                    isOutgoing = false,
-                    encType = 1
-                )
-                viewModelScope.launch(Dispatchers.IO) {
-                    messageDao.insert(message)
-                    _incomingMessage.postValue(message)
+                if (keyStore.hasPendingKeyExchange(src)) {
+                    // We initiated: finalize with our stored private key
+                    val privBytes = keyStore.getPendingPrivateKey(src) ?: return@launch
+                    val privKey = EcdhHelper.bytesToPrivateKey(privBytes)
+                    val sharedSecret = EcdhHelper.computeSharedSecret(privKey, peerPubKey)
+                    val sessionKey = deriveSessionKey(sharedSecret)
+                    keyStore.clearPendingKeyExchange(src)
+                    keyStore.setPeerKey(src, sessionKey)
+                    provisionPeerKey(src, sessionKey)
+                } else {
+                    // They initiated: respond with our public key then finalize
+                    val pair = EcdhHelper.generateKeyPair()
+                    val rawPub = EcdhHelper.publicKeyToRaw(pair.public)
+                    val pubHex = rawPub.toHex()
+                    sendAtCommand("AT+SENDKX=${src.hexId},$pubHex\r\n")
+                    val sharedSecret = EcdhHelper.computeSharedSecret(pair.private, peerPubKey)
+                    val sessionKey = deriveSessionKey(sharedSecret)
+                    keyStore.setPeerKey(src, sessionKey)
+                    provisionPeerKey(src, sessionKey)
                 }
-            } catch (e: Exception) {
-                Timber.e(e, "[CRYPTO] Fallo al descifrar mensaje de grupo 0x${groupId.toHexNodeId()}")
             }
         }
     }
 
-    fun onGroupCreated(groupId: Int, groupName: String) {
+    private fun deriveSessionKey(sharedSecret: ByteArray): ByteArray =
+        HkdfSha256.derive(sharedSecret, null, "A3MESH-N2N-v1".toByteArray(Charsets.UTF_8), 32)
+
+    private fun provisionPeerKey(nodeId: Int, key: ByteArray) {
+        sendAtCommand("AT+SETPEERKEY=${nodeId.hexId},${key.toHex()}\r\n")
+    }
+
+    // ── Network key ───────────────────────────────────────────────────────────
+
+    fun setNetworkPassphrase(passphrase: String) {
+        val masterSecret = NetworkKeyManager.passphraseToMasterSecret(passphrase)
+        keyStore.setNetMasterSecret(masterSecret)
+        val dailyKey = NetworkKeyManager.deriveDailyKey(masterSecret)
+        sendAtCommand("AT+SETNETKEY=${dailyKey.toHex()}\r\n")
+    }
+
+    // ── Key reprovisioning on reconnect ───────────────────────────────────────
+
+    fun reprovisionAllKeys() {
+        viewModelScope.launch(Dispatchers.Default) {
+            // Peer keys
+            for (nodeId in keyStore.getAllPeerIds()) {
+                val key = keyStore.getPeerKey(nodeId) ?: continue
+                sendAtCommand("AT+SETPEERKEY=${nodeId.hexId},${key.toHex()}\r\n")
+            }
+            // Group keys
+            for (groupId in keyStore.getAllGroupIds()) {
+                val key = keyStore.getGroupKey(groupId) ?: continue
+                sendAtCommand("AT+SETGRPKEY=${groupId.hexId},${key.toHex()}\r\n")
+            }
+            // Network key (today's derived key)
+            val masterSecret = keyStore.getNetMasterSecret()
+            if (masterSecret != null) {
+                val dailyKey = NetworkKeyManager.deriveDailyKey(masterSecret)
+                sendAtCommand("AT+SETNETKEY=${dailyKey.toHex()}\r\n")
+            }
+        }
+    }
+
+    // ── Group management ──────────────────────────────────────────────────────
+
+    fun createGroup(name: String): Int {
+        val rng = SecureRandom()
+        val groupId = rng.nextInt() or Int.MIN_VALUE  // high bit set → negative Int
+        val key = ByteArray(32).also { rng.nextBytes(it) }
+        keyStore.setGroupKey(groupId, name, key)
+        sendAtCommand("AT+SETGRPKEY=${groupId.hexId},${key.toHex()}\r\n")
         viewModelScope.launch(Dispatchers.IO) {
-            contactDao.insertOrUpdate(Contact(address = groupId, name = groupName))
             messageDao.insert(Message(
                 contactAddress = groupId,
                 content = "Grupo creado",
@@ -254,73 +263,42 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
                 isOutgoing = true
             ))
         }
+        return groupId
     }
 
-    fun onGroupJoined(groupId: Int, groupName: String) {
+    fun joinGroup(groupId: Int, name: String, key: ByteArray) {
+        keyStore.setGroupKey(groupId, name, key)
+        sendAtCommand("AT+SETGRPKEY=${groupId.hexId},${key.toHex()}\r\n")
         viewModelScope.launch(Dispatchers.IO) {
-            if (contactDao.getByAddress(groupId) == null) {
-                contactDao.insertOrUpdate(Contact(address = groupId, name = groupName))
-                messageDao.insert(Message(
-                    contactAddress = groupId,
-                    content = "Te has unido al grupo",
-                    timestamp = System.currentTimeMillis(),
-                    isOutgoing = false
-                ))
-            }
+            messageDao.insert(Message(
+                contactAddress = groupId,
+                content = "Te has unido al grupo",
+                timestamp = System.currentTimeMillis(),
+                isOutgoing = false
+            ))
         }
     }
 
-    fun hasGroupKey(groupId: Int): Boolean = SessionKeyStore.hasGroupKey(groupId)
-
-    /**
-     * Envío unificado: grupo > E2E > plano.
-     * Reemplaza las llamadas directas a sendAtCommand("AT+SEND=...") en la UI.
-     */
-    fun sendMessage(dst: Int, text: String) {
-        if (dst == PUBLIC_CHANNEL_ADDRESS) {
-            sendAtCommand("AT+SEND=FFFFFFFF,$text\r\n")
-            onMessageSent(PUBLIC_CHANNEL_ADDRESS, text, encType = 0)
-            return
-        }
-        val groupKey = SessionKeyStore.getGroupKey(dst)
-        if (groupKey != null) {
-            viewModelScope.launch(Dispatchers.Default) {
-                try {
-                    val cipher = CryptoManager.encrypt(groupKey, text.toByteArray(Charsets.UTF_8))
-                    sendAtCommand("AT+SENDGRP=${dst.toHexNodeId()},${CryptoManager.toBase64(cipher)}\r\n")
-                    onMessageSent(dst, text, encType = 1)
-                    Timber.d("[CRYPTO] Mensaje de grupo enviado a 0x${dst.toHexNodeId()}")
-                } catch (e: Exception) {
-                    Timber.e(e, "[CRYPTO] Fallo al cifrar mensaje de grupo")
-                }
-            }
-            return
-        }
-        val e2eKey = SessionKeyStore.getE2eKey(dst)
-        if (e2eKey != null) {
-            viewModelScope.launch(Dispatchers.Default) {
-                try {
-                    val cipher = CryptoManager.encrypt(e2eKey, text.toByteArray(Charsets.UTF_8))
-                    sendAtCommand("AT+SENDE2E=${dst.toHexNodeId()},${CryptoManager.toBase64(cipher)}\r\n")
-                    onMessageSent(dst, text, encType = 2)
-                    Timber.d("[CRYPTO] Mensaje E2E enviado a 0x${dst.toHexNodeId()}")
-                } catch (e: Exception) {
-                    Timber.e(e, "[CRYPTO] Fallo al cifrar, enviando en plano")
-                    sendAtCommand("AT+SEND=${dst.toHexNodeId()},$text\r\n")
-                    onMessageSent(dst, text, encType = 0)
-                }
-            }
-        } else {
-            sendAtCommand("AT+SEND=${dst.toHexNodeId()},$text\r\n")
-            onMessageSent(dst, text, encType = 0)
-        }
+    // Encodes a group's ID + key + name as a shareable QR-friendly string.
+    // Format: "a3g:<8hex_id>:<64hex_key>:<name>"
+    fun groupCode(groupId: Int): String {
+        val key = keyStore.getGroupKey(groupId) ?: return ""
+        val name = keyStore.getGroupName(groupId)
+        return "a3g:${groupId.hexId}:${key.toHex()}:$name"
     }
 
-    private fun Int.toHexNodeId(): String = "%08x".format(this)
+    // Returns Triple(groupId, key, name) or null if format is invalid.
+    fun parseGroupCode(code: String): Triple<Int, ByteArray, String>? {
+        if (!code.startsWith("a3g:")) return null
+        val parts = code.removePrefix("a3g:").split(":", limit = 3)
+        if (parts.size != 3) return null
+        val groupId = parts[0].toLongOrNull(16)?.toInt() ?: return null
+        val key = try { parts[1].fromHex() } catch (e: Exception) { return null }
+        if (key.size != 32) return null
+        return Triple(groupId, key, parts[2])
+    }
 
-    // -------------------------------------------------------
-    // Gestión de contactos
-    // -------------------------------------------------------
+    // ── Contact / message persistence ────────────────────────────────────────
 
     fun saveContact(address: Int, name: String) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -334,7 +312,17 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun getMessagesForContact(address: Int): LiveData<List<Message>> {
-        return messageDao.getMessagesForContact(address)
+    fun getMessagesForContact(address: Int): LiveData<List<Message>> =
+        messageDao.getMessagesForContact(address)
+
+    // ── Private helpers ───────────────────────────────────────────────────────
+
+    private val Int.hexId: String get() = "%08x".format(this.toLong() and 0xFFFFFFFFL)
+
+    private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
+
+    private fun String.fromHex(): ByteArray {
+        check(length % 2 == 0)
+        return ByteArray(length / 2) { i -> substring(2 * i, 2 * i + 2).toInt(16).toByte() }
     }
 }

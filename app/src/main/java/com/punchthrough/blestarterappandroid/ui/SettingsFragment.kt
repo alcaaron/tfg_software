@@ -3,6 +3,7 @@ package com.punchthrough.blestarterappandroid.ui
 import android.app.AlertDialog
 import android.content.Context
 import android.os.Bundle
+import android.text.InputType
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -33,7 +34,6 @@ class SettingsFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         updateProfileDisplay(prefs.getString("my_name", "") ?: "")
-
         binding.editNameButton.setOnClickListener { showEditNameDialog() }
 
         val savedMode = prefs.getInt("night_mode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
@@ -53,6 +53,41 @@ class SettingsFragment : Fragment() {
             prefs.edit().putBoolean("demo_mode", enabled).apply()
             bleViewModel.sendAtCommand(if (enabled) "AT+DEMO=1\r\n" else "AT+DEMO=0\r\n")
         }
+
+        updateNetworkKeyStatus()
+        binding.networkKeyRow.setOnClickListener { showNetworkKeyDialog() }
+    }
+
+    private fun updateNetworkKeyStatus() {
+        binding.networkKeyStatus.text = if (bleViewModel.keyStore.hasNetMasterSecret()) {
+            "Configurada (clave diaria activa)"
+        } else {
+            "No configurada"
+        }
+    }
+
+    private fun showNetworkKeyDialog() {
+        val editText = EditText(requireContext()).apply {
+            hint = "Frase secreta de red"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        }
+        AlertDialog.Builder(requireContext())
+            .setTitle("Clave de Red")
+            .setMessage("Todos los nodos deben usar la misma frase para comunicarse en el canal de red. La clave diaria se renueva automáticamente cada día.")
+            .setView(LinearLayout(requireContext()).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(48, 16, 48, 0)
+                addView(editText)
+            })
+            .setPositiveButton("Aplicar") { _, _ ->
+                val passphrase = editText.text.toString().trim()
+                if (passphrase.isNotEmpty()) {
+                    bleViewModel.setNetworkPassphrase(passphrase)
+                    updateNetworkKeyStatus()
+                }
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
     }
 
     private fun updateProfileDisplay(name: String) {

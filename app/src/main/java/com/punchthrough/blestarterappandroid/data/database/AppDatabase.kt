@@ -27,7 +27,7 @@ import com.punchthrough.blestarterappandroid.data.model.Message
 
 @Database(
     entities = [Contact::class, Message::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

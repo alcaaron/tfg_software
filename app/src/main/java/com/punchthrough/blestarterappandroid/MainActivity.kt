@@ -24,6 +24,7 @@ class MainActivity : AppCompatActivity() {
     private val connectionEventListener by lazy {
         ConnectionEventListener().apply {
             onConnectionSetupComplete = { gatt ->
+                ConnectionManager.requestMtu(gatt.device, 256)
                 bleViewModel.onDeviceConnected(gatt.device)
                 val notifyChar = gatt.services
                     ?.flatMap { it.characteristics ?: emptyList() }
@@ -54,7 +55,6 @@ class MainActivity : AppCompatActivity() {
                     when {
                         text.startsWith("+RCV=") -> {
                             // +RCV=<src_hex>,<node_id_hex>,<dst_hex>,<payload>
-                            // dst == FFFFFFFF means broadcast → canal público
                             val parts = text.removePrefix("+RCV=").split(",", limit = 4)
                             if (parts.size == 4) {
                                 parts[0].toLongOrNull(16)?.toInt()?.let { addr ->
@@ -67,37 +67,39 @@ class MainActivity : AppCompatActivity() {
                                 }
                             }
                         }
-                        text.startsWith("+DISC=") -> {
-                            // +DISC=<node_id_hex>  — nuevo vecino descubierto
-                            text.removePrefix("+DISC=").toLongOrNull(16)?.toInt()
-                                ?.let { bleViewModel.onDiscoveryEvent(it) }
-                        }
-                        text.startsWith("+KX=") -> {
-                            // +KX=<src_hex>,<node_id_hex>,<b64_pubkey>
-                            val parts = text.removePrefix("+KX=").split(",", limit = 3)
-                            if (parts.size == 3) {
-                                parts[0].toLongOrNull(16)?.toInt()?.let { src ->
-                                    bleViewModel.onKeyExchangeReceived(src, parts[2])
-                                }
-                            }
-                        }
                         text.startsWith("+RCVE2E=") -> {
-                            // +RCVE2E=<src_hex>,<node_id_hex>,<b64_cipher>
+                            // +RCVE2E=<src_hex>,<node_id_hex>,<plaintext>
                             val parts = text.removePrefix("+RCVE2E=").split(",", limit = 3)
                             if (parts.size == 3) {
-                                parts[0].toLongOrNull(16)?.toInt()?.let { src ->
-                                    bleViewModel.onE2eMessageReceived(src, parts[2])
+                                parts[0].toLongOrNull(16)?.toInt()?.let { addr ->
+                                    bleViewModel.onMessageReceived(addr, parts[2])
                                 }
                             }
                         }
                         text.startsWith("+RCVGRP=") -> {
-                            // +RCVGRP=<group_id_hex>,<src_hex>,<node_id_hex>,<b64_cipher>
+                            // +RCVGRP=<group_id_hex>,<src_hex>,<node_id_hex>,<plaintext>
                             val parts = text.removePrefix("+RCVGRP=").split(",", limit = 4)
                             if (parts.size == 4) {
                                 val groupId = parts[0].toLongOrNull(16)?.toInt()
                                 val src = parts[1].toLongOrNull(16)?.toInt()
                                 if (groupId != null && src != null) {
                                     bleViewModel.onGroupMessageReceived(groupId, src, parts[3])
+                                }
+                            }
+                        }
+                        text.startsWith("+DISC=") -> {
+                            // +DISC=<node_id_hex>  — new neighbor discovered
+                            val nodeIdHex = text.removePrefix("+DISC=").trim()
+                            nodeIdHex.toLongOrNull(16)?.toInt()?.let { nodeId ->
+                                bleViewModel.initiateKeyExchange(nodeId)
+                            }
+                        }
+                        text.startsWith("+KX=") -> {
+                            // +KX=<src_hex>,<relay_hex>,<pub_key_128hex>
+                            val parts = text.removePrefix("+KX=").split(",", limit = 3)
+                            if (parts.size == 3) {
+                                parts[0].toLongOrNull(16)?.toInt()?.let { src ->
+                                    bleViewModel.onKeyExchangeReceived(src, parts[2].trim())
                                 }
                             }
                         }

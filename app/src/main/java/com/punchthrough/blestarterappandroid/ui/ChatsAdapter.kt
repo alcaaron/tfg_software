@@ -4,22 +4,24 @@ import android.content.res.ColorStateList
 import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.ViewGroup
-import androidx.appcompat.content.res.AppCompatResources
-import androidx.core.graphics.drawable.DrawableCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.punchthrough.blestarterappandroid.BleViewModel
-import com.punchthrough.blestarterappandroid.R
 import com.punchthrough.blestarterappandroid.data.model.Contact
 import com.punchthrough.blestarterappandroid.data.model.Message
 import com.punchthrough.blestarterappandroid.databinding.ItemChatBinding
-import com.punchthrough.blestarterappandroid.security.SessionKeyStore
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-data class ChatItem(val contact: Contact?, val lastMessage: Message, val isPinned: Boolean = false)
+data class ChatItem(
+    val contact: Contact?,
+    val lastMessage: Message,
+    val isPinned: Boolean = false,
+    val isGroup: Boolean = false,
+    val groupName: String? = null
+)
 
 class ChatsAdapter(
     private val onClick: (ChatItem) -> Unit
@@ -31,47 +33,46 @@ class ChatsAdapter(
         fun bind(item: ChatItem) {
             val address = item.lastMessage.contactAddress
 
-            if (item.isPinned) {
-                binding.contactName.text = "Canal Público"
-                binding.avatarText.text = "#"
-                binding.avatarText.backgroundTintList =
-                    ColorStateList.valueOf(Color.parseColor("#66BB6A"))
-                binding.messageTime.visibility = android.view.View.GONE
-                binding.pinIcon.visibility = android.view.View.VISIBLE
-                binding.lastMessage.text = if (item.lastMessage.timestamp == 0L) {
-                    "Sin cifrado · Canal abierto"
-                } else {
+            when {
+                item.isPinned -> {
+                    binding.contactName.text = "Canal Público"
+                    binding.avatarText.text = "#"
+                    binding.avatarText.backgroundTintList =
+                        ColorStateList.valueOf(Color.parseColor("#66BB6A"))
+                    binding.messageTime.visibility = android.view.View.GONE
+                    binding.pinIcon.visibility = android.view.View.VISIBLE
+                    binding.lastMessage.text = if (item.lastMessage.timestamp == 0L) {
+                        "Sin cifrado · Canal abierto"
+                    } else {
+                        val prefix = if (item.lastMessage.isOutgoing) "Tú: " else ""
+                        "$prefix${item.lastMessage.content}"
+                    }
+                }
+                item.isGroup -> {
+                    val name = item.groupName?.takeIf { it.isNotBlank() } ?: "Grupo"
+                    binding.contactName.text = name
+                    binding.avatarText.text = "#"
+                    binding.avatarText.backgroundTintList =
+                        ColorStateList.valueOf(deriveAvatarColor(address))
                     val prefix = if (item.lastMessage.isOutgoing) "Tú: " else ""
-                    "$prefix${item.lastMessage.content}"
+                    binding.lastMessage.text = "$prefix${item.lastMessage.content}"
+                    binding.pinIcon.visibility = android.view.View.GONE
+                    binding.messageTime.visibility = android.view.View.VISIBLE
+                    binding.messageTime.text = formatTime(item.lastMessage.timestamp)
                 }
-            } else {
-                val displayName = item.contact?.name?.takeIf { it.isNotBlank() }
-                    ?: "Nodo ${"%08x".format(address).uppercase()}"
-                binding.contactName.text = displayName
-                binding.avatarText.text = displayName.first().uppercaseChar().toString()
-                binding.avatarText.backgroundTintList =
-                    ColorStateList.valueOf(deriveAvatarColor(address))
-                val prefix = if (item.lastMessage.isOutgoing) "Tú: " else ""
-                binding.lastMessage.text = "$prefix${item.lastMessage.content}"
-                binding.pinIcon.visibility = android.view.View.GONE
-                binding.messageTime.visibility = android.view.View.VISIBLE
-                binding.messageTime.text = formatTime(item.lastMessage.timestamp)
-            }
-
-            val isEncrypted = !item.isPinned &&
-                (SessionKeyStore.hasE2eKey(address) || SessionKeyStore.hasGroupKey(address))
-            if (isEncrypted) {
-                val lock = AppCompatResources.getDrawable(
-                    binding.root.context, R.drawable.ic_lock
-                )?.mutate()
-                if (lock != null) {
-                    DrawableCompat.setTint(lock, binding.contactName.currentTextColor)
-                    binding.contactName.setCompoundDrawablesRelativeWithIntrinsicBounds(null, null, lock, null)
-                    binding.contactName.compoundDrawablePadding =
-                        (4 * binding.root.context.resources.displayMetrics.density).toInt()
+                else -> {
+                    val displayName = item.contact?.name?.takeIf { it.isNotBlank() }
+                        ?: "Nodo ${"%08x".format(address).uppercase()}"
+                    binding.contactName.text = displayName
+                    binding.avatarText.text = displayName.first().uppercaseChar().toString()
+                    binding.avatarText.backgroundTintList =
+                        ColorStateList.valueOf(deriveAvatarColor(address))
+                    val prefix = if (item.lastMessage.isOutgoing) "Tú: " else ""
+                    binding.lastMessage.text = "$prefix${item.lastMessage.content}"
+                    binding.pinIcon.visibility = android.view.View.GONE
+                    binding.messageTime.visibility = android.view.View.VISIBLE
+                    binding.messageTime.text = formatTime(item.lastMessage.timestamp)
                 }
-            } else {
-                binding.contactName.setCompoundDrawablesRelativeWithIntrinsicBounds(null, null, null, null)
             }
 
             binding.root.setOnClickListener { onClick(item) }
@@ -81,10 +82,8 @@ class ChatsAdapter(
             val now = System.currentTimeMillis()
             val diff = now - timestamp
             return if (diff < 24 * 60 * 60 * 1000) {
-                // Menos de 24h — muestra solo la hora
                 SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(timestamp))
             } else {
-                // Más de 24h — muestra la fecha
                 SimpleDateFormat("dd/MM", Locale.getDefault()).format(Date(timestamp))
             }
         }

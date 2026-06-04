@@ -10,7 +10,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.punchthrough.blestarterappandroid.databinding.ActivityChatBinding
 import com.punchthrough.blestarterappandroid.ble.ConnectionEventListener
 import com.punchthrough.blestarterappandroid.ble.ConnectionManager
-import com.punchthrough.blestarterappandroid.security.SessionKeyStore
 import com.punchthrough.blestarterappandroid.ui.MessagesAdapter
 
 class ChatActivity : AppCompatActivity() {
@@ -79,13 +78,6 @@ class ChatActivity : AppCompatActivity() {
             if (actionId == EditorInfo.IME_ACTION_SEND) { sendMessage(); true } else false
         }
 
-        updateEncryptionStatus()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        // Re-check por si el handshake terminó mientras la activity estaba en background
-        updateEncryptionStatus()
     }
 
     override fun onDestroy() {
@@ -118,12 +110,4 @@ class ChatActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun updateEncryptionStatus() {
-        binding.toolbar.subtitle = when {
-            contactAddress == PUBLIC_CHANNEL_ADDRESS -> "Canal público · Sin cifrado"
-            SessionKeyStore.hasE2eKey(contactAddress) -> "Cifrado extremo a extremo"
-            SessionKeyStore.hasGroupKey(contactAddress) -> "Cifrado de grupo"
-            else -> null
-        }
-    }
 }
