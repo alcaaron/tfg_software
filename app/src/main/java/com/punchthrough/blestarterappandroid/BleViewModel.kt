@@ -6,6 +6,7 @@ import android.bluetooth.BluetoothDevice
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.map
 import androidx.lifecycle.viewModelScope
 import com.punchthrough.blestarterappandroid.ble.ConnectionManager
 import com.punchthrough.blestarterappandroid.crypto.A3MeshKeyStore
@@ -13,6 +14,7 @@ import com.punchthrough.blestarterappandroid.crypto.EcdhHelper
 import com.punchthrough.blestarterappandroid.crypto.HkdfSha256
 import com.punchthrough.blestarterappandroid.crypto.NetworkKeyManager
 import com.punchthrough.blestarterappandroid.data.database.AppDatabase
+import com.punchthrough.blestarterappandroid.data.dao.UnreadCount
 import com.punchthrough.blestarterappandroid.data.model.Contact
 import com.punchthrough.blestarterappandroid.data.model.Message
 import kotlinx.coroutines.Dispatchers
@@ -53,6 +55,8 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
 
     val allContacts: LiveData<List<Contact>> = contactDao.getAllContacts()
     val lastMessages: LiveData<List<Message>> = messageDao.getLastMessagePerContact()
+    val unreadCounts: LiveData<Map<Int, Int>> = messageDao.getUnreadCountsPerContact()
+        .map { list -> list.associate { it.contactAddress to it.count } }
 
     @SuppressLint("MissingPermission")
     fun onDeviceConnected(device: BluetoothDevice) {
@@ -90,7 +94,8 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
             contactAddress = senderAddress,
             content = content,
             timestamp = System.currentTimeMillis(),
-            isOutgoing = false
+            isOutgoing = false,
+            isRead = false
         )
         viewModelScope.launch(Dispatchers.IO) {
             messageDao.insert(message)
@@ -108,7 +113,8 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
             content = content,
             timestamp = System.currentTimeMillis(),
             isOutgoing = false,
-            senderAddress = senderAddress
+            senderAddress = senderAddress,
+            isRead = false
         )
         viewModelScope.launch(Dispatchers.IO) {
             messageDao.insert(message)
@@ -122,7 +128,8 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
             content = content,
             timestamp = System.currentTimeMillis(),
             isOutgoing = false,
-            senderAddress = senderAddress
+            senderAddress = senderAddress,
+            isRead = false
         )
         viewModelScope.launch(Dispatchers.IO) {
             messageDao.insert(message)
@@ -306,6 +313,12 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
     fun deleteContact(contact: Contact) {
         viewModelScope.launch(Dispatchers.IO) {
             contactDao.delete(contact)
+        }
+    }
+
+    fun markConversationRead(address: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            messageDao.markAsRead(address)
         }
     }
 

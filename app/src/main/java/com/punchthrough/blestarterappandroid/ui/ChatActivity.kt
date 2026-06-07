@@ -65,10 +65,13 @@ class ChatActivity : AppCompatActivity() {
         binding.messagesRecyclerView.layoutManager = layoutManager
         binding.messagesRecyclerView.adapter = messagesAdapter
 
+        bleViewModel.markConversationRead(contactAddress)
+
         bleViewModel.getMessagesForContact(contactAddress).observe(this) { messages ->
             messagesAdapter.submitList(messages) {
                 if (messages.isNotEmpty()) {
                     binding.messagesRecyclerView.scrollToPosition(messages.size - 1)
+                    bleViewModel.markConversationRead(contactAddress)
                 }
             }
         }

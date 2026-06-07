@@ -32,5 +32,9 @@ data class Message(
 
     // Para mensajes del canal público: address del nodo que lo envió (0 = desconocido/saliente)
     @ColumnInfo(defaultValue = "0")
-    val senderAddress: Int = 0
+    val senderAddress: Int = 0,
+
+    // false = mensaje recibido no leído todavía; true = ya visto (o saliente)
+    @ColumnInfo(defaultValue = "1")
+    val isRead: Boolean = true
 )

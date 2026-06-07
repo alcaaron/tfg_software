@@ -9,6 +9,7 @@ import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.punchthrough.blestarterappandroid.ble.ConnectionEventListener
+import com.punchthrough.blestarterappandroid.ui.ConnectBottomSheet
 import com.punchthrough.blestarterappandroid.ble.ConnectionManager
 import com.punchthrough.blestarterappandroid.ble.isNotifiable
 import com.punchthrough.blestarterappandroid.databinding.ActivityMainBinding
@@ -176,6 +177,10 @@ class MainActivity : AppCompatActivity() {
             binding.bottomNav.menu.findItem(R.id.deviceFragment).setIcon(
                 if (device != null) R.drawable.ic_device else R.drawable.ic_device_off
             )
+        }
+
+        if (bleViewModel.connectedDevice.value == null) {
+            ConnectBottomSheet().show(supportFragmentManager, ConnectBottomSheet.TAG)
         }
     }
 

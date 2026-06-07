@@ -20,7 +20,8 @@ data class ChatItem(
     val lastMessage: Message,
     val isPinned: Boolean = false,
     val isGroup: Boolean = false,
-    val groupName: String? = null
+    val groupName: String? = null,
+    val unreadCount: Int = 0
 )
 
 class ChatsAdapter(
@@ -73,6 +74,13 @@ class ChatsAdapter(
                     binding.messageTime.visibility = android.view.View.VISIBLE
                     binding.messageTime.text = formatTime(item.lastMessage.timestamp)
                 }
+            }
+
+            if (item.unreadCount > 0) {
+                binding.unreadBadge.visibility = android.view.View.VISIBLE
+                binding.unreadBadge.text = if (item.unreadCount > 99) "99+" else item.unreadCount.toString()
+            } else {
+                binding.unreadBadge.visibility = android.view.View.GONE
             }
 
             binding.root.setOnClickListener { onClick(item) }

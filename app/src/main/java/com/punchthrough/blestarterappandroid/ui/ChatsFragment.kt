@@ -91,10 +91,21 @@ class ChatsFragment : Fragment() {
         setupSwipeToDelete()
 
         bleViewModel.lastMessages.observe(viewLifecycleOwner) { messages ->
-            buildChatList(messages, bleViewModel.allContacts.value ?: emptyList())
+            buildChatList(
+                messages,
+                bleViewModel.allContacts.value ?: emptyList(),
+                bleViewModel.unreadCounts.value ?: emptyMap()
+            )
         }
         bleViewModel.allContacts.observe(viewLifecycleOwner) { contacts ->
-            bleViewModel.lastMessages.value?.let { buildChatList(it, contacts) }
+            bleViewModel.lastMessages.value?.let {
+                buildChatList(it, contacts, bleViewModel.unreadCounts.value ?: emptyMap())
+            }
+        }
+        bleViewModel.unreadCounts.observe(viewLifecycleOwner) { counts ->
+            bleViewModel.lastMessages.value?.let {
+                buildChatList(it, bleViewModel.allContacts.value ?: emptyList(), counts)
+            }
         }
 
         binding.newMessageFab.setOnClickListener {
@@ -415,7 +426,7 @@ class ChatsFragment : Fragment() {
         }
     }
 
-    private fun buildChatList(messages: List<Message>, contacts: List<Contact>) {
+    private fun buildChatList(messages: List<Message>, contacts: List<Contact>, unreadCounts: Map<Int, Int>) {
         val contactMap = contacts.associateBy { it.address }
         val groupIdSet = bleViewModel.keyStore.getAllGroupIds().toSet()
 
@@ -426,7 +437,12 @@ class ChatsFragment : Fragment() {
                 timestamp = 0L,
                 isOutgoing = false
             )
-        val publicItem = ChatItem(contact = null, lastMessage = publicLastMsg, isPinned = true)
+        val publicItem = ChatItem(
+            contact = null,
+            lastMessage = publicLastMsg,
+            isPinned = true,
+            unreadCount = unreadCounts[BleViewModel.PUBLIC_CHANNEL_ADDRESS] ?: 0
+        )
 
         val regularItems = messages
             .filter { it.contactAddress != BleViewModel.PUBLIC_CHANNEL_ADDRESS }
@@ -437,7 +453,8 @@ class ChatsFragment : Fragment() {
                     contact = if (isGroup) null else contactMap[address],
                     lastMessage = msg,
                     isGroup = isGroup,
-                    groupName = if (isGroup) bleViewModel.keyStore.getGroupName(address) else null
+                    groupName = if (isGroup) bleViewModel.keyStore.getGroupName(address) else null,
+                    unreadCount = unreadCounts[address] ?: 0
                 )
             }
 

@@ -20,6 +20,11 @@ import androidx.lifecycle.LiveData
 import androidx.room.*
 import com.punchthrough.blestarterappandroid.data.model.Message
 
+data class UnreadCount(
+    val contactAddress: Int,
+    val count: Int
+)
+
 @Dao
 interface MessageDao {
 
@@ -42,4 +47,10 @@ interface MessageDao {
 
     @Query("DELETE FROM messages WHERE contactAddress = :address")
     suspend fun deleteConversation(address: Int)
+
+    @Query("SELECT contactAddress, COUNT(*) as count FROM messages WHERE isRead = 0 GROUP BY contactAddress")
+    fun getUnreadCountsPerContact(): LiveData<List<UnreadCount>>
+
+    @Query("UPDATE messages SET isRead = 1 WHERE contactAddress = :address")
+    suspend fun markAsRead(address: Int)
 }
