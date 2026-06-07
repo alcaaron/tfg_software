@@ -18,8 +18,10 @@ import com.punchthrough.blestarterappandroid.data.dao.UnreadCount
 import com.punchthrough.blestarterappandroid.data.model.Contact
 import com.punchthrough.blestarterappandroid.data.model.Message
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.security.SecureRandom
+import java.util.Calendar
 import java.util.UUID
 
 data class NeighborNode(val nodeId: String, val rssi: String, val t: String)
@@ -30,6 +32,10 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
 
     companion object {
         const val PUBLIC_CHANNEL_ADDRESS = 0
+    }
+
+    init {
+        scheduleMidnightKeyRefresh()
     }
 
     private val db = AppDatabase.getInstance(app)
@@ -245,9 +251,36 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
                 val key = keyStore.getGroupKey(groupId) ?: continue
                 sendAtCommand("AT+SETGRPKEY=${groupId.hexId},${key.toHex()}\r\n")
             }
-            // Network key: derived automatically from date, no user input needed
+            // Network key: only send if the day changed since last provisioning
+            refreshNetKeyIfNeeded()
+        }
+    }
+
+    private fun refreshNetKeyIfNeeded() {
+        val today = NetworkKeyManager.today()
+        if (today != keyStore.getLastNetKeyDate()) {
             val dailyKey = NetworkKeyManager.deriveDailyKey()
             sendAtCommand("AT+SETNETKEY=${dailyKey.toHex()}\r\n")
+            keyStore.setLastNetKeyDate(today)
+        }
+    }
+
+    private fun scheduleMidnightKeyRefresh() {
+        viewModelScope.launch(Dispatchers.IO) {
+            while (true) {
+                val now = Calendar.getInstance()
+                val nextMidnight = Calendar.getInstance().apply {
+                    add(Calendar.DAY_OF_YEAR, 1)
+                    set(Calendar.HOUR_OF_DAY, 0)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 5)
+                    set(Calendar.MILLISECOND, 0)
+                }
+                delay(nextMidnight.timeInMillis - now.timeInMillis)
+                if (_connectedDevice.value != null) {
+                    refreshNetKeyIfNeeded()
+                }
+            }
         }
     }
 

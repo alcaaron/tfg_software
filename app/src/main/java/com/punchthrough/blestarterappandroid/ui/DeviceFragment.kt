@@ -2,11 +2,13 @@ package com.punchthrough.blestarterappandroid.ui
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -89,8 +91,13 @@ class DeviceFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         binding.scanButton.setOnClickListener {
-            if (requireContext().hasRequiredBluetoothPermissions()) showScanDialog()
-            else requestBluetoothPermissions()
+            if (!bluetoothAdapter.isEnabled) {
+                showEnableBluetoothDialog()
+            } else if (requireContext().hasRequiredBluetoothPermissions()) {
+                showScanDialog()
+            } else {
+                requestBluetoothPermissions()
+            }
         }
 
         binding.disconnectButton.setOnClickListener {
@@ -124,6 +131,18 @@ class DeviceFragment : Fragment() {
         if (bleViewModel.connectedDevice.value != null) {
             bleViewModel.sendAtCommand("AT+INFO?\r\n")
         }
+    }
+
+    private fun showEnableBluetoothDialog() {
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+            .setTitle("Bluetooth desactivado")
+            .setMessage("Activa el Bluetooth para buscar nodos A3MESH.")
+            .setPositiveButton("Activar") { _, _ ->
+                @Suppress("DEPRECATION")
+                startActivity(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
     }
 
     private fun requestBluetoothPermissions() {

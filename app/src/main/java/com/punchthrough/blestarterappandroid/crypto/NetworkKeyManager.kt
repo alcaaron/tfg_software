@@ -12,11 +12,12 @@ object NetworkKeyManager {
     // The daily key rotates every day; yesterday's key cannot be reused.
     private val NETWORK_SEED = "A3MESH-NET-v1".toByteArray(Charsets.UTF_8)
 
+    fun today(): String = DATE_FORMAT.format(Date())
+
     // Derives the 32-byte AES-256 key for today automatically.
     // info = "A3MESH-NET-DAILY-v1" || "YYYY-MM-DD"
     fun deriveDailyKey(): ByteArray {
-        val today = DATE_FORMAT.format(Date())
-        val info = "A3MESH-NET-DAILY-v1".toByteArray(Charsets.UTF_8) + today.toByteArray(Charsets.UTF_8)
+        val info = "A3MESH-NET-DAILY-v1".toByteArray(Charsets.UTF_8) + today().toByteArray(Charsets.UTF_8)
         return HkdfSha256.derive(NETWORK_SEED, null, info, 32)
     }
 }

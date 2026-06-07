@@ -1,6 +1,10 @@
 package com.punchthrough.blestarterappandroid
 
+import android.bluetooth.BluetoothAdapter
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Bundle
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -8,6 +12,7 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import androidx.core.content.ContextCompat
 import com.punchthrough.blestarterappandroid.ble.ConnectionEventListener
 import com.punchthrough.blestarterappandroid.ui.ConnectBottomSheet
 import com.punchthrough.blestarterappandroid.ble.ConnectionManager
@@ -22,6 +27,20 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private val bleViewModel: BleViewModel by viewModels()
 
+    private val btStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) == BluetoothAdapter.STATE_OFF &&
+                bleViewModel.connectedDevice.value != null
+            ) {
+                MaterialAlertDialogBuilder(this@MainActivity)
+                    .setTitle("Bluetooth desactivado")
+                    .setMessage("El Bluetooth se ha desactivado y la conexión con el dispositivo se ha perdido.")
+                    .setPositiveButton("Aceptar", null)
+                    .show()
+            }
+        }
+    }
+
     private val connectionEventListener by lazy {
         ConnectionEventListener().apply {
             onConnectionSetupComplete = { gatt ->
@@ -34,19 +53,27 @@ class MainActivity : AppCompatActivity() {
                     ConnectionManager.enableNotifications(gatt.device, notifyChar)
                 }
                 bleViewModel.sendAtCommand("AT+INFO?\r\n")
+                ContextCompat.startForegroundService(
+                    this@MainActivity,
+                    Intent(this@MainActivity, BleConnectionService::class.java)
+                )
                 runOnUiThread {
                     binding.bottomNav.selectedItemId = R.id.deviceFragment
                 }
             }
 
             onDisconnect = {
+                val wasConnected = bleViewModel.connectedDevice.value != null
                 bleViewModel.onDeviceDisconnected()
-                runOnUiThread {
-                    MaterialAlertDialogBuilder(this@MainActivity)
-                        .setTitle("Dispositivo desconectado")
-                        .setMessage("La conexión con el dispositivo BLE se ha perdido.")
-                        .setPositiveButton("Aceptar", null)
-                        .show()
+                stopService(Intent(this@MainActivity, BleConnectionService::class.java))
+                if (wasConnected) {
+                    runOnUiThread {
+                        MaterialAlertDialogBuilder(this@MainActivity)
+                            .setTitle("Dispositivo desconectado")
+                            .setMessage("La conexión con el dispositivo BLE se ha perdido.")
+                            .setPositiveButton("Aceptar", null)
+                            .show()
+                    }
                 }
             }
 
@@ -167,6 +194,7 @@ class MainActivity : AppCompatActivity() {
 
         ConnectionManager.registerListener(connectionEventListener)
         ConnectionManager.listenToBondStateChanges(this)
+        registerReceiver(btStateReceiver, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
 
         val navHostFragment = supportFragmentManager
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
@@ -179,12 +207,19 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
-        if (bleViewModel.connectedDevice.value == null) {
+        val alreadyConnected = ConnectionManager.connectedDevices().firstOrNull()
+        if (alreadyConnected != null) {
+            // Activity was recreated (rotation, etc.) but BLE connection is still alive — restore state
+            if (bleViewModel.connectedDevice.value == null) {
+                bleViewModel.onDeviceConnected(alreadyConnected)
+            }
+        } else if (supportFragmentManager.findFragmentByTag(ConnectBottomSheet.TAG) == null) {
             ConnectBottomSheet().show(supportFragmentManager, ConnectBottomSheet.TAG)
         }
     }
 
     override fun onDestroy() {
+        runCatching { unregisterReceiver(btStateReceiver) }
         ConnectionManager.unregisterListener(connectionEventListener)
         super.onDestroy()
     }

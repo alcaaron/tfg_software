@@ -34,6 +34,8 @@
         tools:targetApi="s" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
 
     <uses-feature
         android:name="android.hardware.bluetooth_le"
@@ -54,6 +56,11 @@
             android:screenOrientation="portrait"
             android:exported="false"
             />
+        <service
+            android:name=".BleConnectionService"
+            android:foregroundServiceType="connectedDevice"
+            android:exported="false"/>
+
         <activity android:name=".MainActivity"
             android:screenOrientation="portrait"
             android:exported="true"

@@ -45,42 +45,79 @@
         android:textAlignment="center"
         android:textColor="?attr/colorOnSurfaceVariant"/>
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/scanButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal"
-        android:layout_marginBottom="16dp"
-        android:text="Buscar dispositivos"/>
-
+    <!-- Estado: Bluetooth desactivado -->
     <LinearLayout
-        android:id="@+id/scanningRow"
+        android:id="@+id/btOffGroup"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:layout_marginHorizontal="32dp"
-        android:layout_marginBottom="8dp"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
         android:visibility="gone">
-
-        <ProgressBar
-            android:layout_width="20dp"
-            android:layout_height="20dp"
-            android:layout_marginEnd="10dp"/>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Buscando..."
+            android:layout_marginHorizontal="32dp"
+            android:layout_marginBottom="20dp"
+            android:text="El Bluetooth está desactivado. Actívalo para buscar dispositivos."
             android:textSize="14sp"
+            android:textAlignment="center"
             android:textColor="?attr/colorOnSurfaceVariant"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btActivateButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Activar Bluetooth"/>
+
     </LinearLayout>
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/devicesRecyclerView"
+    <!-- Estado: Bluetooth activado – búsqueda -->
+    <LinearLayout
+        android:id="@+id/scanGroup"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:clipToPadding="false"
-        android:paddingTop="4dp"/>
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/scanButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="16dp"
+            android:text="Buscar dispositivos"/>
+
+        <LinearLayout
+            android:id="@+id/scanningRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginHorizontal="32dp"
+            android:layout_marginBottom="8dp"
+            android:visibility="gone">
+
+            <ProgressBar
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginEnd="10dp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Buscando..."
+                android:textSize="14sp"
+                android:textColor="?attr/colorOnSurfaceVariant"/>
+        </LinearLayout>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/devicesRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clipToPadding="false"
+            android:paddingTop="4dp"/>
+
+    </LinearLayout>
 
 </LinearLayout>

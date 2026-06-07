@@ -2,11 +2,15 @@ package com.punchthrough.blestarterappandroid.ui
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -54,7 +58,7 @@ class ConnectBottomSheet : BottomSheetDialogFragment() {
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        if (permissions.values.all { it }) startScan()
+        if (permissions.values.all { it }) tryStartScan()
         else Toast.makeText(
             requireContext(),
             "Se necesitan permisos Bluetooth para escanear",
@@ -82,7 +86,6 @@ class ConnectBottomSheet : BottomSheetDialogFragment() {
             isDraggable = false
         }
 
-        // Back press exits the app instead of dismissing the sheet
         requireActivity().onBackPressedDispatcher.addCallback(
             viewLifecycleOwner,
             object : OnBackPressedCallback(true) {
@@ -95,17 +98,48 @@ class ConnectBottomSheet : BottomSheetDialogFragment() {
         binding.devicesRecyclerView.layoutManager = LinearLayoutManager(requireContext())
         binding.devicesRecyclerView.adapter = scanResultAdapter
 
-        binding.scanButton.setOnClickListener {
-            if (requireContext().hasRequiredBluetoothPermissions()) startScan()
-            else requestBluetoothPermissions()
+        binding.scanButton.setOnClickListener { tryStartScan() }
+
+        @Suppress("DEPRECATION")
+        binding.btActivateButton.setOnClickListener {
+            startActivity(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
         }
 
         bleViewModel.connectedDevice.observe(viewLifecycleOwner) { device ->
             if (device != null) dismissAllowingStateLoss()
         }
 
-        if (requireContext().hasRequiredBluetoothPermissions()) {
-            startScan()
+        requireContext().registerReceiver(
+            btStateReceiver,
+            IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+        )
+
+        tryStartScan()
+    }
+
+    private fun tryStartScan() {
+        if (!bluetoothAdapter.isEnabled) {
+            binding.btOffGroup.visibility = View.VISIBLE
+            binding.scanGroup.visibility = View.GONE
+            return
+        }
+        binding.btOffGroup.visibility = View.GONE
+        binding.scanGroup.visibility = View.VISIBLE
+        if (requireContext().hasRequiredBluetoothPermissions()) startScan()
+        else requestBluetoothPermissions()
+    }
+
+    private val btStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1)
+            when (state) {
+                BluetoothAdapter.STATE_ON -> tryStartScan()
+                BluetoothAdapter.STATE_OFF -> {
+                    if (isScanning) stopScan()
+                    _binding?.btOffGroup?.visibility = View.VISIBLE
+                    _binding?.scanGroup?.visibility = View.GONE
+                }
+            }
         }
     }
 
@@ -153,13 +187,14 @@ class ConnectBottomSheet : BottomSheetDialogFragment() {
         }
 
         override fun onScanFailed(errorCode: Int) {
-            binding.scanButton.isEnabled = true
-            binding.scanningRow.visibility = View.GONE
+            _binding?.scanButton?.isEnabled = true
+            _binding?.scanningRow?.visibility = View.GONE
         }
     }
 
     override fun onDestroyView() {
         if (isScanning) stopScan()
+        runCatching { requireContext().unregisterReceiver(btStateReceiver) }
         super.onDestroyView()
         _binding = null
     }

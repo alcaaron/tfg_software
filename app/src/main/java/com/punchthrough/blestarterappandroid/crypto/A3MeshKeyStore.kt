@@ -8,6 +8,14 @@ class A3MeshKeyStore(context: Context) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("a3mesh_keys", Context.MODE_PRIVATE)
 
+    // ── Net key provisioning date (to avoid re-sending the same key every connect) ──
+
+    fun getLastNetKeyDate(): String = prefs.getString("net_key_date", "") ?: ""
+
+    fun setLastNetKeyDate(date: String) {
+        prefs.edit().putString("net_key_date", date).apply()
+    }
+
     // ── Network master secret ─────────────────────────────────────────────────
 
     fun setNetMasterSecret(masterSecret: ByteArray) {
