@@ -218,6 +218,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        val alreadyConnected = ConnectionManager.connectedDevices().firstOrNull()
+        if (alreadyConnected != null) {
+            if (bleViewModel.connectedDevice.value == null) {
+                bleViewModel.onDeviceConnected(alreadyConnected)
+            }
+        } else if (supportFragmentManager.findFragmentByTag(ConnectBottomSheet.TAG) == null) {
+            ConnectBottomSheet().show(supportFragmentManager, ConnectBottomSheet.TAG)
+        }
+    }
+
     override fun onDestroy() {
         runCatching { unregisterReceiver(btStateReceiver) }
         ConnectionManager.unregisterListener(connectionEventListener)

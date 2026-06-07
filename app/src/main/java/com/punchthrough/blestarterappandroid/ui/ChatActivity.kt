@@ -91,8 +91,21 @@ class ChatActivity : AppCompatActivity() {
     private fun sendMessage() {
         val text = binding.messageEditText.text.toString().trim()
         if (text.isEmpty() || contactAddress == -1) return
+        if (ConnectionManager.connectedDevices().isEmpty()) {
+            showNoDeviceDialog()
+            return
+        }
         bleViewModel.sendMessage(contactAddress, text)
         binding.messageEditText.text?.clear()
+    }
+
+    private fun showNoDeviceDialog() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Sin dispositivo conectado")
+            .setMessage("No hay ningún nodo A3MESH conectado. Conéctate a uno para poder enviar mensajes.")
+            .setPositiveButton("Ir a conectar") { _, _ -> finish() }
+            .setNegativeButton("Cancelar", null)
+            .show()
     }
 
     private fun showSenderOptionsDialog(senderAddress: Int) {
