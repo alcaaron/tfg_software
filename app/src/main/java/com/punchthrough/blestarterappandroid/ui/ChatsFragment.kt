@@ -2,6 +2,9 @@ package com.punchthrough.blestarterappandroid.ui
 
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -13,9 +16,12 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
@@ -82,6 +88,7 @@ class ChatsFragment : Fragment() {
 
         binding.chatsRecyclerView.layoutManager = LinearLayoutManager(requireContext())
         binding.chatsRecyclerView.adapter = adapter
+        setupSwipeToDelete()
 
         bleViewModel.lastMessages.observe(viewLifecycleOwner) { messages ->
             buildChatList(messages, bleViewModel.allContacts.value ?: emptyList())
@@ -109,6 +116,69 @@ class ChatsFragment : Fragment() {
                     }
                 }
             })
+    }
+
+    // ── Swipe to delete ───────────────────────────────────────────────────────
+
+    private fun setupSwipeToDelete() {
+        val deleteBackground = ColorDrawable(Color.parseColor("#F44336"))
+        val swipeCallback = object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT) {
+
+            override fun getSwipeDirs(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder): Int {
+                val pos = viewHolder.bindingAdapterPosition
+                if (pos < 0 || adapter.currentList[pos].isPinned) return 0
+                return super.getSwipeDirs(recyclerView, viewHolder)
+            }
+
+            override fun onMove(rv: RecyclerView, vh: RecyclerView.ViewHolder, t: RecyclerView.ViewHolder) = false
+
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+                val position = viewHolder.bindingAdapterPosition
+                if (position < 0) return
+                val item = adapter.currentList[position]
+                val address = item.lastMessage.contactAddress
+                val label = when {
+                    item.isGroup -> item.groupName?.takeIf { it.isNotBlank() } ?: "Grupo"
+                    else -> item.contact?.name?.takeIf { it.isNotBlank() }
+                        ?: "Nodo ${"%08x".format(address).uppercase()}"
+                }
+                MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("Eliminar chat")
+                    .setMessage("¿Eliminar la conversación con $label?")
+                    .setPositiveButton("Eliminar") { _, _ ->
+                        bleViewModel.deleteChat(address, item.isGroup)
+                    }
+                    .setNegativeButton("Cancelar") { _, _ ->
+                        adapter.notifyItemChanged(position)
+                    }
+                    .setOnCancelListener {
+                        adapter.notifyItemChanged(position)
+                    }
+                    .show()
+            }
+
+            override fun onChildDraw(
+                c: Canvas, recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder,
+                dX: Float, dY: Float, actionState: Int, isCurrentlyActive: Boolean
+            ) {
+                val item = viewHolder.itemView
+                deleteBackground.setBounds(item.right + dX.toInt(), item.top, item.right, item.bottom)
+                deleteBackground.draw(c)
+                val icon = ContextCompat.getDrawable(recyclerView.context, R.drawable.ic_delete)
+                if (icon != null) {
+                    val margin = (item.height - icon.intrinsicHeight) / 2
+                    val iconTop = item.top + margin
+                    val iconRight = item.right - margin
+                    val iconLeft = iconRight - icon.intrinsicWidth
+                    if (iconLeft > item.right + dX.toInt()) {
+                        icon.setBounds(iconLeft, iconTop, iconRight, iconTop + icon.intrinsicHeight)
+                        icon.draw(c)
+                    }
+                }
+                super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+            }
+        }
+        ItemTouchHelper(swipeCallback).attachToRecyclerView(binding.chatsRecyclerView)
     }
 
     // ── Speed dial animation ──────────────────────────────────────────────────

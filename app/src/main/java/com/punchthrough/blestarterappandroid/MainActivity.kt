@@ -104,7 +104,13 @@ class MainActivity : AppCompatActivity() {
                             }
                         }
                         text.startsWith("+NEIGHBORS=") -> {
-                            bleViewModel.onNeighborsReceived(parseNeighbors(text))
+                            val neighbors = parseNeighbors(text)
+                            bleViewModel.onNeighborsReceived(neighbors)
+                            for (neighbor in neighbors) {
+                                neighbor.nodeId.toLongOrNull(16)?.toInt()?.let { nodeId ->
+                                    bleViewModel.initiateKeyExchange(nodeId)
+                                }
+                            }
                         }
                         text.contains("+NODEID=") || text.startsWith("+NODEID=") -> {
                             val info = parseDeviceInfo(text)

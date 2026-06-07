@@ -199,63 +199,6 @@
 
                 </LinearLayout>
 
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:layout_marginHorizontal="16dp"
-                    android:background="?attr/colorOutlineVariant"/>
-
-                <!-- Clave de Red -->
-                <LinearLayout
-                    android:id="@+id/networkKeyRow"
-                    android:layout_width="match_parent"
-                    android:layout_height="56dp"
-                    android:orientation="horizontal"
-                    android:paddingHorizontal="16dp"
-                    android:gravity="center_vertical"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:foreground="?attr/selectableItemBackground">
-
-                    <ImageView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:src="@drawable/ic_settings"
-                        android:tint="?attr/colorOnSurfaceVariant"
-                        android:contentDescription="@null"/>
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:layout_marginStart="16dp"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Clave de Red"
-                            android:textSize="16sp"/>
-
-                        <TextView
-                            android:id="@+id/networkKeyStatus"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="No configurada"
-                            android:textSize="12sp"
-                            android:textColor="?attr/colorOnSurfaceVariant"/>
-
-                    </LinearLayout>
-
-                    <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:src="@drawable/ic_chevron_right"
-                        android:tint="?attr/colorOnSurfaceVariant"
-                        android:contentDescription="@null"/>
-
-                </LinearLayout>
-
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 

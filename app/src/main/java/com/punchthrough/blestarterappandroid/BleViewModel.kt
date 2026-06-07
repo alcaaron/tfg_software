@@ -59,6 +59,7 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
         _connectedDevice.postValue(device)
         _connectionStatus.postValue("Conectado a ${device.name ?: device.address}")
         reprovisionAllKeys()
+        sendAtCommand("AT+NEIGHBORS?\r\n")
     }
 
     fun onDeviceDisconnected() {
@@ -144,11 +145,7 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
     fun sendMessage(dst: Int, text: String) {
         when {
             dst == PUBLIC_CHANNEL_ADDRESS -> {
-                if (keyStore.hasNetMasterSecret()) {
-                    sendAtCommand("AT+SENDNET=ffffffff,$text\r\n")
-                } else {
-                    sendAtCommand("AT+SEND=ffffffff,$text\r\n")
-                }
+                sendAtCommand("AT+SENDNET=ffffffff,$text\r\n")
             }
             keyStore.hasGroupKey(dst) -> {
                 sendAtCommand("AT+SENDGRP=${dst.hexId},$text\r\n")
@@ -215,15 +212,6 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
         sendAtCommand("AT+SETPEERKEY=${nodeId.hexId},${key.toHex()}\r\n")
     }
 
-    // ── Network key ───────────────────────────────────────────────────────────
-
-    fun setNetworkPassphrase(passphrase: String) {
-        val masterSecret = NetworkKeyManager.passphraseToMasterSecret(passphrase)
-        keyStore.setNetMasterSecret(masterSecret)
-        val dailyKey = NetworkKeyManager.deriveDailyKey(masterSecret)
-        sendAtCommand("AT+SETNETKEY=${dailyKey.toHex()}\r\n")
-    }
-
     // ── Key reprovisioning on reconnect ───────────────────────────────────────
 
     fun reprovisionAllKeys() {
@@ -238,12 +226,9 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
                 val key = keyStore.getGroupKey(groupId) ?: continue
                 sendAtCommand("AT+SETGRPKEY=${groupId.hexId},${key.toHex()}\r\n")
             }
-            // Network key (today's derived key)
-            val masterSecret = keyStore.getNetMasterSecret()
-            if (masterSecret != null) {
-                val dailyKey = NetworkKeyManager.deriveDailyKey(masterSecret)
-                sendAtCommand("AT+SETNETKEY=${dailyKey.toHex()}\r\n")
-            }
+            // Network key: derived automatically from date, no user input needed
+            val dailyKey = NetworkKeyManager.deriveDailyKey()
+            sendAtCommand("AT+SETNETKEY=${dailyKey.toHex()}\r\n")
         }
     }
 
@@ -309,6 +294,13 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
     fun deleteContact(contact: Contact) {
         viewModelScope.launch(Dispatchers.IO) {
             contactDao.delete(contact)
+        }
+    }
+
+    fun deleteChat(address: Int, isGroup: Boolean) {
+        if (isGroup) keyStore.removeGroupKey(address) else keyStore.removePeerKey(address)
+        viewModelScope.launch(Dispatchers.IO) {
+            messageDao.deleteConversation(address)
         }
     }
 

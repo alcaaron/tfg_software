@@ -8,19 +8,15 @@ object NetworkKeyManager {
 
     private val DATE_FORMAT = SimpleDateFormat("yyyy-MM-dd", Locale.US)
 
-    // Derives the 32-byte AES-256 key for today from the master passphrase secret.
+    // Fixed network seed — all A3MESH nodes share the same derivation.
+    // The daily key rotates every day; yesterday's key cannot be reused.
+    private val NETWORK_SEED = "A3MESH-NET-v1".toByteArray(Charsets.UTF_8)
+
+    // Derives the 32-byte AES-256 key for today automatically.
     // info = "A3MESH-NET-DAILY-v1" || "YYYY-MM-DD"
-    fun deriveDailyKey(masterSecret: ByteArray): ByteArray {
+    fun deriveDailyKey(): ByteArray {
         val today = DATE_FORMAT.format(Date())
         val info = "A3MESH-NET-DAILY-v1".toByteArray(Charsets.UTF_8) + today.toByteArray(Charsets.UTF_8)
-        return HkdfSha256.derive(masterSecret, null, info, 32)
-    }
-
-    // Derives the master secret from a user-chosen passphrase string.
-    // Stored in the key store; daily key is derived from this each session.
-    fun passphraseToMasterSecret(passphrase: String): ByteArray {
-        val info = "A3MESH-NET-MASTER-v1".toByteArray(Charsets.UTF_8)
-        val ikm = passphrase.toByteArray(Charsets.UTF_8)
-        return HkdfSha256.derive(ikm, null, info, 32)
+        return HkdfSha256.derive(NETWORK_SEED, null, info, 32)
     }
 }
