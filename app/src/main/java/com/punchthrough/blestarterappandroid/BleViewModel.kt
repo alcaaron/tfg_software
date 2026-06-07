@@ -164,14 +164,26 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
     // ── Key exchange ──────────────────────────────────────────────────────────
 
     fun initiateKeyExchange(nodeId: Int) {
-        if (keyStore.hasPendingKeyExchange(nodeId) || keyStore.hasPeerKey(nodeId)) return
+        if (keyStore.hasPeerKey(nodeId)) return
         viewModelScope.launch(Dispatchers.Default) {
-            val pair = EcdhHelper.generateKeyPair()
-            val rawPub = EcdhHelper.publicKeyToRaw(pair.public)
-            keyStore.setPendingPrivateKey(nodeId, EcdhHelper.privateKeyToBytes(pair.private))
-            val pubHex = rawPub.toHex()
-            sendAtCommand("AT+SENDKX=${nodeId.hexId},$pubHex\r\n")
+            val existingPubHex = keyStore.getPendingPublicKeyHex(nodeId)
+            if (existingPubHex != null) {
+                // Pending but peer's response never arrived: resend our public key to prompt re-response
+                sendAtCommand("AT+SENDKX=${nodeId.hexId},$existingPubHex\r\n")
+            } else {
+                val pair = EcdhHelper.generateKeyPair()
+                val rawPub = EcdhHelper.publicKeyToRaw(pair.public)
+                val pubHex = rawPub.toHex()
+                keyStore.setPendingKeyPair(nodeId, EcdhHelper.privateKeyToBytes(pair.private), pubHex)
+                sendAtCommand("AT+SENDKX=${nodeId.hexId},$pubHex\r\n")
+            }
         }
+    }
+
+    fun resetAndExchange(nodeId: Int) {
+        keyStore.removePeerKey(nodeId)
+        keyStore.clearPendingKeyExchange(nodeId)
+        initiateKeyExchange(nodeId)
     }
 
     fun onKeyExchangeReceived(src: Int, pubKeyHex: String) {

@@ -63,6 +63,11 @@ class MainActivity : AppCompatActivity() {
                                         bleViewModel.onPublicMessageReceived(addr, parts[3])
                                     } else {
                                         bleViewModel.onMessageReceived(addr, parts[3])
+                                        // Received unencrypted from a peer we have a key for:
+                                        // they lost our KX response → reset and re-exchange
+                                        if (bleViewModel.keyStore.hasPeerKey(addr)) {
+                                            bleViewModel.resetAndExchange(addr)
+                                        }
                                     }
                                 }
                             }

@@ -58,17 +58,26 @@ class A3MeshKeyStore(context: Context) {
 
     // ── Pending ECDH private keys ─────────────────────────────────────────────
 
-    fun setPendingPrivateKey(nodeId: Int, pkcs8Bytes: ByteArray) {
-        prefs.edit().putString("pending_kx_${nodeId.hex}", pkcs8Bytes.toHex()).apply()
+    fun setPendingKeyPair(nodeId: Int, pkcs8Bytes: ByteArray, pubHex: String) {
+        prefs.edit()
+            .putString("pending_kx_${nodeId.hex}", pkcs8Bytes.toHex())
+            .putString("pending_pub_${nodeId.hex}", pubHex)
+            .apply()
     }
 
     fun getPendingPrivateKey(nodeId: Int): ByteArray? =
         prefs.getString("pending_kx_${nodeId.hex}", null)?.fromHex()
 
+    fun getPendingPublicKeyHex(nodeId: Int): String? =
+        prefs.getString("pending_pub_${nodeId.hex}", null)
+
     fun hasPendingKeyExchange(nodeId: Int): Boolean = prefs.contains("pending_kx_${nodeId.hex}")
 
     fun clearPendingKeyExchange(nodeId: Int) {
-        prefs.edit().remove("pending_kx_${nodeId.hex}").apply()
+        prefs.edit()
+            .remove("pending_kx_${nodeId.hex}")
+            .remove("pending_pub_${nodeId.hex}")
+            .apply()
     }
 
     // ── Group keys ────────────────────────────────────────────────────────────
