@@ -9,6 +9,7 @@ import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.content.Intent
+import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -205,9 +206,22 @@ class DeviceFragment : Fragment() {
     private fun updateDeviceInfoDisplay(info: Map<String, String>) {
         val batteryValue = info["BATT"]
         binding.batteryText.text = batteryValue?.let { "$it%" } ?: ""
-        binding.batteryText.setCompoundDrawablesRelativeWithIntrinsicBounds(
-            if (batteryValue != null) R.drawable.ic_battery else 0, 0, 0, 0
-        )
+        if (batteryValue != null) {
+            val pct = batteryValue.toIntOrNull() ?: 0
+            val (drawableRes, colorRes) = when {
+                pct > 50 -> R.drawable.ic_battery_high to R.color.battery_green
+                pct > 20 -> R.drawable.ic_battery_mid  to R.color.battery_orange
+                else     -> R.drawable.ic_battery_low  to R.color.battery_red
+            }
+            val batteryColor = requireContext().getColor(colorRes)
+            binding.batteryText.setTextColor(batteryColor)
+            val icon: Drawable? = androidx.core.content.ContextCompat
+                .getDrawable(requireContext(), drawableRes)?.mutate()
+            icon?.setTint(batteryColor)
+            binding.batteryText.setCompoundDrawablesRelativeWithIntrinsicBounds(icon, null, null, null)
+        } else {
+            binding.batteryText.setCompoundDrawablesRelativeWithIntrinsicBounds(null, null, null, null)
+        }
 
         binding.deviceInfoContainer.removeAllViews()
         val displayInfo = info.filter { it.key != "BATT" }
