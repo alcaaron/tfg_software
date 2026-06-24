@@ -163,9 +163,9 @@
                     android:layout_marginHorizontal="16dp"
                     android:background="?attr/colorOutlineVariant"/>
 
-                <!-- Modo DEMO -->
+                <!-- Advanced Settings -->
                 <LinearLayout
-                    android:id="@+id/demoModeRow"
+                    android:id="@+id/advancedSettingsRow"
                     android:layout_width="match_parent"
                     android:layout_height="56dp"
                     android:orientation="horizontal"
@@ -187,15 +187,15 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:layout_marginStart="16dp"
-                        android:text="Modo DEMO"
+                        android:text="Advanced Settings"
                         android:textSize="16sp"/>
 
-                    <com.google.android.material.materialswitch.MaterialSwitch
-                        android:id="@+id/demoModeSwitch"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:clickable="false"
-                        android:focusable="false"/>
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_chevron_right"
+                        android:tint="?attr/colorOnSurfaceVariant"
+                        android:contentDescription="@null"/>
 
                 </LinearLayout>
 

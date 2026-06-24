@@ -59,6 +59,13 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
     private val _neighbors = MutableLiveData<List<NeighborNode>>(emptyList())
     val neighbors: LiveData<List<NeighborNode>> = _neighbors
 
+    private val _atResponse = MutableLiveData<String>()
+    val atResponse: LiveData<String> = _atResponse
+
+    fun onRawAtResponse(text: String) {
+        _atResponse.postValue(text)
+    }
+
     val allContacts: LiveData<List<Contact>> = contactDao.getAllContacts()
     val lastMessages: LiveData<List<Message>> = messageDao.getLastMessagePerContact()
     val unreadCounts: LiveData<Map<Int, Int>> = messageDao.getUnreadCountsPerContact()

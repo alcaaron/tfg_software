@@ -149,6 +149,9 @@ class MainActivity : AppCompatActivity() {
                             val info = parseDeviceInfo(text)
                             if (info.isNotEmpty()) bleViewModel.onDeviceInfoReceived(info)
                         }
+                        text.startsWith("+OK") || text.startsWith("+ERR=") || text.startsWith("+LORA=") -> {
+                            bleViewModel.onRawAtResponse(text)
+                        }
                     }
                 }
             }
