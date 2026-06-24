@@ -259,8 +259,11 @@ class BleViewModel(private val app: Application) : AndroidViewModel(app) {
                 val key = keyStore.getGroupKey(groupId) ?: continue
                 sendAtCommand("AT+SETGRPKEY=${groupId.hexId},${key.toHex()}\r\n")
             }
-            // Network key: only send if the day changed since last provisioning
-            refreshNetKeyIfNeeded()
+            // Network key: always send on reconnect — firmware may have rebooted and lost its state
+            val today = NetworkKeyManager.today()
+            val dailyKey = NetworkKeyManager.deriveDailyKey()
+            sendAtCommand("AT+SETNETKEY=${dailyKey.toHex()}\r\n")
+            keyStore.setLastNetKeyDate(today)
         }
     }
 
