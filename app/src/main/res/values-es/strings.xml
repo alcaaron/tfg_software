@@ -38,6 +38,7 @@
     <string name="invalid_address">Dirección hex inválida (ej: AABBCCDD)</string>
     <string name="group_name_hint">Nombre del grupo</string>
     <string name="share_code_msg">Comparte este código con los otros nodos:</string>
+    <string name="share_group">Compartir grupo</string>
     <string name="group_created_title">Grupo creado: %1$s</string>
     <string name="go_to_chat">Ir al chat</string>
     <string name="scan_qr">Escanear código QR</string>

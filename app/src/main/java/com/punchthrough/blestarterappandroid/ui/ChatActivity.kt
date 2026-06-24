@@ -2,12 +2,19 @@ package com.punchthrough.blestarterappandroid
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.inputmethod.EditorInfo
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.MultiFormatWriter
+import com.journeyapps.barcodescanner.BarcodeEncoder
 import com.punchthrough.blestarterappandroid.databinding.ActivityChatBinding
 import com.punchthrough.blestarterappandroid.ble.ConnectionEventListener
 import com.punchthrough.blestarterappandroid.ble.ConnectionManager
@@ -61,6 +68,12 @@ class ChatActivity : AppCompatActivity() {
 
         binding.toolbar.title = contactName
         binding.toolbar.setNavigationOnClickListener { finish() }
+        binding.toolbar.inflateMenu(R.menu.menu_chat)
+        val isGroup = bleViewModel.keyStore.getAllGroupIds().contains(contactAddress)
+        binding.toolbar.menu.findItem(R.id.action_share_group)?.isVisible = isGroup
+        binding.toolbar.setOnMenuItemClickListener { item ->
+            if (item.itemId == R.id.action_share_group) { showGroupQrDialog(); true } else false
+        }
 
         messagesAdapter.isPublicChannel = (contactAddress == PUBLIC_CHANNEL_ADDRESS)
         messagesAdapter.onSenderLongClick = { senderAddress -> showSenderOptionsDialog(senderAddress) }
@@ -109,6 +122,51 @@ class ChatActivity : AppCompatActivity() {
             .setPositiveButton(getString(R.string.btn_go_connect)) { _, _ -> finish() }
             .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
+    }
+
+    private fun showGroupQrDialog() {
+        val code = bleViewModel.groupCode(contactAddress)
+        if (code.isEmpty()) return
+        val qrBitmap = generateQrBitmap(code)
+
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 24, 48, 16)
+        }
+        if (qrBitmap != null) {
+            layout.addView(ImageView(this).apply {
+                setImageBitmap(qrBitmap)
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, 480
+                )
+                scaleType = ImageView.ScaleType.FIT_CENTER
+            })
+        }
+        layout.addView(TextView(this).apply {
+            text = getString(R.string.share_code_msg)
+            setPadding(0, 16, 0, 8)
+            textSize = 13f
+        })
+        layout.addView(TextView(this).apply {
+            text = code
+            textSize = 11f
+            setTextIsSelectable(true)
+        })
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle(contactName)
+            .setView(layout)
+            .setPositiveButton(getString(R.string.btn_close), null)
+            .show()
+    }
+
+    private fun generateQrBitmap(content: String, size: Int = 512): Bitmap? {
+        return try {
+            val matrix = MultiFormatWriter().encode(content, BarcodeFormat.QR_CODE, size, size)
+            BarcodeEncoder().createBitmap(matrix)
+        } catch (e: Exception) {
+            null
+        }
     }
 
     private fun showSenderOptionsDialog(senderAddress: Int) {

@@ -40,6 +40,7 @@
     <string name="invalid_address">Invalid hex address (e.g. AABBCCDD)</string>
     <string name="group_name_hint">Group name</string>
     <string name="share_code_msg">Share this code with the other nodes:</string>
+    <string name="share_group">Share group</string>
     <string name="group_created_title">Group created: %1$s</string>
     <string name="go_to_chat">Go to chat</string>
     <string name="scan_qr">Scan QR code</string>
