@@ -1,5 +1,6 @@
 package com.punchthrough.blestarterappandroid
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.inputmethod.EditorInfo
@@ -15,8 +16,6 @@ import com.punchthrough.blestarterappandroid.ui.MessagesAdapter
 class ChatActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityChatBinding
-    // by viewModels() crea una instancia propia, pero sendMessage() funciona igualmente
-    // porque ConnectionManager y SessionKeyStore son singletons de proceso.
     private val bleViewModel: BleViewModel by viewModels()
     private val messagesAdapter = MessagesAdapter()
 
@@ -26,9 +25,9 @@ class ChatActivity : AppCompatActivity() {
                 runOnUiThread {
                     if (!isFinishing) {
                         MaterialAlertDialogBuilder(this@ChatActivity)
-                            .setTitle("Dispositivo desconectado")
-                            .setMessage("La conexión con el dispositivo BLE se ha perdido.")
-                            .setPositiveButton("Volver") { _, _ -> finish() }
+                            .setTitle(getString(R.string.device_disconnected))
+                            .setMessage(getString(R.string.device_disconnected_msg))
+                            .setPositiveButton(getString(R.string.btn_go_back)) { _, _ -> finish() }
                             .setCancelable(false)
                             .show()
                     }
@@ -46,6 +45,10 @@ class ChatActivity : AppCompatActivity() {
         const val PUBLIC_CHANNEL_ADDRESS = BleViewModel.PUBLIC_CHANNEL_ADDRESS
     }
 
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LocaleHelper.wrap(newBase, LocaleHelper.getSavedLocale(newBase)))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityChatBinding.inflate(layoutInflater)
@@ -53,7 +56,8 @@ class ChatActivity : AppCompatActivity() {
         ConnectionManager.registerListener(connectionEventListener)
 
         contactAddress = intent.getIntExtra(EXTRA_CONTACT_ADDRESS, -1)
-        contactName = intent.getStringExtra(EXTRA_CONTACT_NAME) ?: "Nodo $contactAddress"
+        contactName = intent.getStringExtra(EXTRA_CONTACT_NAME)
+            ?: getString(R.string.node_label, "%08X".format(contactAddress))
 
         binding.toolbar.title = contactName
         binding.toolbar.setNavigationOnClickListener { finish() }
@@ -80,7 +84,6 @@ class ChatActivity : AppCompatActivity() {
         binding.messageEditText.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEND) { sendMessage(); true } else false
         }
-
     }
 
     override fun onDestroy() {
@@ -101,18 +104,18 @@ class ChatActivity : AppCompatActivity() {
 
     private fun showNoDeviceDialog() {
         MaterialAlertDialogBuilder(this)
-            .setTitle("Sin dispositivo conectado")
-            .setMessage("No hay ningún nodo A3MESH conectado. Conéctate a uno para poder enviar mensajes.")
-            .setPositiveButton("Ir a conectar") { _, _ -> finish() }
-            .setNegativeButton("Cancelar", null)
+            .setTitle(getString(R.string.no_device_title))
+            .setMessage(getString(R.string.no_device_msg))
+            .setPositiveButton(getString(R.string.btn_go_connect)) { _, _ -> finish() }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 
     private fun showSenderOptionsDialog(senderAddress: Int) {
-        val nodeLabel = "Nodo ${"0x${"%08X".format(senderAddress)}"}"
+        val nodeLabel = getString(R.string.node_hex_label, "%08X".format(senderAddress))
         MaterialAlertDialogBuilder(this)
             .setTitle(nodeLabel)
-            .setItems(arrayOf("Enviar mensaje", "Añadir como contacto")) { _, which ->
+            .setItems(arrayOf(getString(R.string.sender_send), getString(R.string.sender_add_contact))) { _, which ->
                 when (which) {
                     0 -> startActivity(
                         Intent(this, ChatActivity::class.java).apply {
@@ -125,5 +128,4 @@ class ChatActivity : AppCompatActivity() {
             }
             .show()
     }
-
 }

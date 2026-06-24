@@ -34,21 +34,6 @@ import timber.log.Timber
 
 private const val NODE_NAME_PREFIX = "A3MESH_Node"
 
-private val INFO_LABELS = mapOf(
-    "NODEID"    to "ID del Nodo",
-    "BATT"      to "Batería (%)",
-    "FWVER"     to "Versión FW",
-    "UPTIME"    to "Tiempo encendido",
-    "FREQ"      to "Frecuencia (MHz)",
-    "SF"        to "Spreading Factor",
-    "NEIGHBORS" to "Vecinos activos",
-    "FW"        to "Firmware",
-    "BW"        to "Ancho de Banda",
-    "CR"        to "Coding Rate",
-    "POWER"     to "Potencia TX (dBm)",
-    "CHANNEL"   to "Canal"
-)
-
 class DeviceFragment : Fragment() {
 
     private var _binding: FragmentDeviceBinding? = null
@@ -80,7 +65,7 @@ class DeviceFragment : Fragment() {
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         if (permissions.values.all { it }) showScanDialog()
-        else Toast.makeText(requireContext(), "Se necesitan permisos Bluetooth para escanear", Toast.LENGTH_LONG).show()
+        else Toast.makeText(requireContext(), getString(R.string.bt_permission_toast), Toast.LENGTH_LONG).show()
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -136,13 +121,13 @@ class DeviceFragment : Fragment() {
 
     private fun showEnableBluetoothDialog() {
         com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Bluetooth desactivado")
-            .setMessage("Activa el Bluetooth para buscar nodos A3MESH.")
-            .setPositiveButton("Activar") { _, _ ->
+            .setTitle(getString(R.string.bt_disabled_title))
+            .setMessage(getString(R.string.bt_disabled_msg))
+            .setPositiveButton(getString(R.string.btn_enable)) { _, _ ->
                 @Suppress("DEPRECATION")
                 startActivity(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
             }
-            .setNegativeButton("Cancelar", null)
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 
@@ -165,9 +150,9 @@ class DeviceFragment : Fragment() {
         (recyclerView.itemAnimator as? SimpleItemAnimator)?.supportsChangeAnimations = false
 
         scanDialog = MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Dispositivos disponibles")
+            .setTitle(getString(R.string.available_devices))
             .setView(dialogView)
-            .setNegativeButton("Cancelar") { _, _ -> if (isScanning) stopScan() }
+            .setNegativeButton(getString(R.string.btn_cancel)) { _, _ -> if (isScanning) stopScan() }
             .setOnDismissListener { if (isScanning) stopScan() }
             .show()
 
@@ -203,6 +188,21 @@ class DeviceFragment : Fragment() {
         override fun onScanFailed(errorCode: Int) { Timber.e("Scan failed: $errorCode") }
     }
 
+    private fun infoLabels() = mapOf(
+        "NODEID"    to getString(R.string.info_node_id),
+        "BATT"      to getString(R.string.info_battery),
+        "FWVER"     to getString(R.string.info_fw_ver),
+        "UPTIME"    to getString(R.string.info_uptime),
+        "FREQ"      to getString(R.string.info_frequency),
+        "SF"        to getString(R.string.info_sf),
+        "NEIGHBORS" to getString(R.string.info_neighbors),
+        "FW"        to getString(R.string.info_firmware),
+        "BW"        to getString(R.string.info_bandwidth),
+        "CR"        to getString(R.string.info_cr),
+        "POWER"     to getString(R.string.info_tx_power),
+        "CHANNEL"   to getString(R.string.info_channel)
+    )
+
     private fun updateDeviceInfoDisplay(info: Map<String, String>) {
         val batteryValue = info["BATT"]
         binding.batteryText.text = batteryValue?.let { "$it%" } ?: ""
@@ -229,7 +229,7 @@ class DeviceFragment : Fragment() {
         val inflater = LayoutInflater.from(requireContext())
         displayInfo.forEach { (key, value) ->
             val row = inflater.inflate(R.layout.item_device_info_field, binding.deviceInfoContainer, false)
-            row.findViewById<TextView>(R.id.infoLabel).text = INFO_LABELS[key] ?: key
+            row.findViewById<TextView>(R.id.infoLabel).text = infoLabels()[key] ?: key
             row.findViewById<TextView>(R.id.infoValue).text = value
             binding.deviceInfoContainer.addView(row)
             val divider = View(requireContext()).apply {

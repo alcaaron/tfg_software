@@ -6,6 +6,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.punchthrough.blestarterappandroid.R
 import com.punchthrough.blestarterappandroid.data.model.Contact
 import com.punchthrough.blestarterappandroid.databinding.ItemContactBinding
 import java.text.SimpleDateFormat
@@ -21,15 +22,16 @@ class ContactsAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(contact: Contact) {
-            binding.contactName.text = contact.name.ifBlank { "Sin nombre" }
+            val ctx = binding.root.context
+            binding.contactName.text = contact.name.ifBlank { ctx.getString(R.string.no_name) }
             binding.avatarText.text = contact.name.firstOrNull()?.uppercaseChar()?.toString() ?: "#"
             binding.avatarText.backgroundTintList =
                 ColorStateList.valueOf(ChatsAdapter.deriveAvatarColor(contact.address))
-            binding.contactAddress.text = "Addr: ${"%08x".format(contact.address).uppercase()}"
+            binding.contactAddress.text = "Addr: ${"%08X".format(contact.address)}"
             binding.contactLastSeen.text = if (contact.lastSeen > 0) {
-                "Visto: ${SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()).format(Date(contact.lastSeen))}"
+                ctx.getString(R.string.last_seen_prefix) + SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()).format(Date(contact.lastSeen))
             } else {
-                "Nunca visto"
+                ctx.getString(R.string.never_seen)
             }
             binding.root.setOnClickListener { onClick(contact) }
             binding.root.setOnLongClickListener {

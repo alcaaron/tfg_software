@@ -10,7 +10,7 @@
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         android:background="?attr/colorSurface"
-        app:title="Dispositivo"
+        app:title="@string/toolbar_device"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"/>
 
@@ -30,7 +30,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Ningún dispositivo conectado"
+            android:text="@string/no_device"
             android:textAlignment="center"
             android:textSize="16sp"
             android:textColor="?attr/colorOnSurfaceVariant"
@@ -41,7 +41,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:text="Buscar dispositivos"/>
+            android:text="@string/btn_scan"/>
 
     </LinearLayout>
 
@@ -117,7 +117,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Conectado"
+                            android:text="@string/connected_status"
                             android:textSize="13sp"
                             android:textColor="@color/connected_green"
                             android:layout_marginStart="6dp"/>
@@ -164,7 +164,7 @@
                 style="@style/Widget.Material3.Button.TonalButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Desconectar"
+                android:text="@string/disconnect"
                 android:textColor="?attr/colorError"
                 app:backgroundTint="?attr/colorErrorContainer"
                 app:iconGravity="textStart"

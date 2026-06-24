@@ -2,6 +2,7 @@ package com.punchthrough.blestarterappandroid.ui
 
 import android.app.AlertDialog
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -14,6 +15,8 @@ import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Observer
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.punchthrough.blestarterappandroid.BleViewModel
+import com.punchthrough.blestarterappandroid.LocaleHelper
+import com.punchthrough.blestarterappandroid.MainActivity
 import com.punchthrough.blestarterappandroid.R
 import com.punchthrough.blestarterappandroid.databinding.DialogLoraConfigBinding
 import com.punchthrough.blestarterappandroid.databinding.FragmentSettingsBinding
@@ -53,7 +56,7 @@ class SettingsFragment : Fragment() {
     }
 
     private fun updateProfileDisplay(name: String) {
-        binding.profileName.text = name.ifBlank { "Sin nombre" }
+        binding.profileName.text = name.ifBlank { getString(R.string.no_name) }
         binding.profileAvatar.text = name.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
     }
 
@@ -66,34 +69,51 @@ class SettingsFragment : Fragment() {
     private fun showEditNameDialog() {
         val editText = EditText(requireContext()).apply {
             setText(prefs.getString("my_name", ""))
-            hint = "Tu nombre"
+            hint = getString(R.string.name_hint)
         }
         AlertDialog.Builder(requireContext())
-            .setTitle("Editar nombre")
+            .setTitle(getString(R.string.edit_name_title))
             .setView(LinearLayout(requireContext()).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(48, 16, 48, 0)
                 addView(editText)
             })
-            .setPositiveButton("Guardar") { _, _ ->
+            .setPositiveButton(getString(R.string.btn_save)) { _, _ ->
                 val newName = editText.text.toString().trim()
                 prefs.edit().putString("my_name", newName).apply()
                 updateProfileDisplay(newName)
             }
-            .setNegativeButton("Cancelar", null)
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 
     private fun showLanguageDialog() {
-        val languages = arrayOf("Español", "English", "Français")
-        val current = prefs.getInt("language_index", 0)
+        val languages = arrayOf(
+            getString(R.string.lang_english),
+            getString(R.string.lang_spanish),
+            getString(R.string.lang_catalan)
+        )
+        val codes = arrayOf("en", "es", "ca")
+        val savedCode = LocaleHelper.getSavedLocale(requireContext())
+        val current = codes.indexOf(savedCode).coerceAtLeast(0)
+
         AlertDialog.Builder(requireContext())
-            .setTitle("Idioma")
+            .setTitle(getString(R.string.language))
             .setSingleChoiceItems(languages, current) { dialog, which ->
-                prefs.edit().putInt("language_index", which).apply()
-                dialog.dismiss()
+                val newCode = codes[which]
+                if (newCode != savedCode) {
+                    LocaleHelper.saveLocale(requireContext(), newCode)
+                    dialog.dismiss()
+                    // Restart the app to apply the new locale cleanly
+                    val intent = Intent(requireContext(), MainActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    }
+                    startActivity(intent)
+                } else {
+                    dialog.dismiss()
+                }
             }
-            .setNegativeButton("Cancelar", null)
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 
@@ -150,8 +170,8 @@ class SettingsFragment : Fragment() {
                     isWaitingForLoraApply = false
                     val errCode = response.removePrefix("+ERR=").trim()
                     MaterialAlertDialogBuilder(requireContext())
-                        .setMessage("Something went wrong. Error $errCode.")
-                        .setPositiveButton("OK", null)
+                        .setMessage(getString(R.string.lora_error, errCode))
+                        .setPositiveButton(getString(R.string.ok), null)
                         .show()
                 }
             }

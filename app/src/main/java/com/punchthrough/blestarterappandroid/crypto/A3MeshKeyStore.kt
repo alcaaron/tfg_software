@@ -2,8 +2,9 @@ package com.punchthrough.blestarterappandroid.crypto
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.punchthrough.blestarterappandroid.R
 
-class A3MeshKeyStore(context: Context) {
+class A3MeshKeyStore(private val context: Context) {
 
     private val prefs: SharedPreferences =
         context.getSharedPreferences("a3mesh_keys", Context.MODE_PRIVATE)
@@ -102,7 +103,7 @@ class A3MeshKeyStore(context: Context) {
         prefs.getString("grp_key_${groupId.hex}", null)?.fromHex()
 
     fun getGroupName(groupId: Int): String =
-        prefs.getString("grp_name_${groupId.hex}", "Grupo ${groupId.hex}") ?: "Grupo"
+        prefs.getString("grp_name_${groupId.hex}", context.getString(R.string.group_default) + " ${groupId.hex}") ?: context.getString(R.string.group_default)
 
     fun hasGroupKey(groupId: Int): Boolean = prefs.contains("grp_key_${groupId.hex}")
 

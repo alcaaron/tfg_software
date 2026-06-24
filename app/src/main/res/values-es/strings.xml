@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Bottom navigation tabs -->
+    <string name="tab_chats">Chats</string>
+    <string name="tab_contacts">Contactos</string>
+    <string name="tab_device">Dispositivo</string>
+    <string name="tab_settings">Config.</string>
+
+    <!-- Toolbar titles -->
+    <string name="toolbar_contacts">Contactos</string>
+    <string name="toolbar_device">Dispositivo</string>
+    <string name="toolbar_settings">Configuración</string>
+
+    <!-- Connect bottom sheet -->
+    <string name="connect_title">Conecta tu nodo A3MESH</string>
+    <string name="connect_desc">Necesitas un nodo LoRa para enviar y recibir mensajes. Busca los dispositivos disponibles a tu alrededor.</string>
+    <string name="bt_disabled_hint">El Bluetooth está desactivado. Actívalo para buscar dispositivos.</string>
+    <string name="btn_enable_bt">Activar Bluetooth</string>
+    <string name="btn_scan">Buscar dispositivos</string>
+    <string name="scanning">Buscando…</string>
+    <string name="scanning_devices">Buscando dispositivos A3MESH_Node…</string>
+
+    <!-- Chats -->
+    <string name="empty_chats">Aún no hay conversaciones.\nConecta un dispositivo y envía un mensaje.</string>
+    <string name="create_group">Crear grupo</string>
+    <string name="join_group">Unirse a grupo</string>
+    <string name="direct_message">Mensaje directo</string>
+    <string name="public_channel">Canal Público</string>
+    <string name="public_channel_subtitle">Sin cifrado · Canal abierto</string>
+    <string name="you_prefix">Tú: </string>
+    <string name="group_default">Grupo</string>
+    <string name="node_label">Nodo %1$s</string>
+    <string name="node_hex_label">Nodo 0x%1$s</string>
+    <string name="delete_chat_title">Eliminar chat</string>
+    <string name="delete_chat_confirm">¿Eliminar la conversación con %1$s?</string>
+    <string name="new_message_title">Nuevo mensaje</string>
+    <string name="write_message_toast">Escribe un mensaje</string>
+    <string name="invalid_address">Dirección hex inválida (ej: AABBCCDD)</string>
+    <string name="group_name_hint">Nombre del grupo</string>
+    <string name="share_code_msg">Comparte este código con los otros nodos:</string>
+    <string name="group_created_title">Grupo creado: %1$s</string>
+    <string name="go_to_chat">Ir al chat</string>
+    <string name="scan_qr">Escanear código QR</string>
+    <string name="enter_manually">Introducir código manualmente</string>
+    <string name="enter_group_code_title">Introducir código de grupo</string>
+    <string name="invalid_group_code">Código de grupo inválido</string>
+    <string name="joined_group">Unido a \"%1$s\"</string>
+    <string name="qr_prompt">Escanea el código QR del grupo</string>
+
+    <!-- Contacts -->
+    <string name="neighbors">Vecinos</string>
+    <string name="refresh_button_label">↻ Actualizar</string>
+    <string name="no_neighbors">Sin vecinos detectados. Pulsa Actualizar.</string>
+    <string name="contacts_section">Contactos</string>
+    <string name="no_contacts">No hay contactos.\nPulsa + para añadir uno.</string>
+    <string name="cd_add_contact">Añadir contacto</string>
+    <string name="add_contact_title">Añadir contacto</string>
+    <string name="name_input_hint">Nombre</string>
+    <string name="hex_error">Debe tener exactamente 8 caracteres hex</string>
+    <string name="delete_contact_title">Eliminar contacto</string>
+    <string name="delete_contact_confirm">¿Eliminar a %1$s?</string>
+    <string name="edit_contact_title">Editar contacto</string>
+    <string name="sender_send">Enviar mensaje</string>
+    <string name="sender_add_contact">Añadir como contacto</string>
+
+    <!-- Device -->
+    <string name="no_device">Ningún dispositivo conectado</string>
+    <string name="connected_status">Conectado</string>
+    <string name="connected_to">Conectado a %1$s</string>
+    <string name="disconnected_status">Desconectado</string>
+    <string name="disconnect">Desconectar</string>
+    <string name="bt_permission_toast">Se necesitan permisos Bluetooth para escanear</string>
+    <string name="bt_disabled_title">Bluetooth desactivado</string>
+    <string name="bt_disabled_msg">Activa el Bluetooth para buscar nodos A3MESH.</string>
+    <string name="available_devices">Dispositivos disponibles</string>
+
+    <!-- Settings -->
+    <string name="language">Idioma</string>
+    <string name="dark_mode">Modo oscuro</string>
+    <string name="advanced_settings">Configuración avanzada</string>
+    <string name="no_name">Sin nombre</string>
+    <string name="last_seen_prefix">Visto: </string>
+    <string name="never_seen">Nunca visto</string>
+    <string name="edit_name_title">Editar nombre</string>
+    <string name="name_hint">Tu nombre</string>
+
+    <!-- LoRa config dialog -->
+    <string name="lora_error">Algo salió mal. Error %1$s.</string>
+
+    <!-- Common buttons -->
+    <string name="btn_save">Guardar</string>
+    <string name="btn_cancel">Cancelar</string>
+    <string name="btn_delete">Eliminar</string>
+    <string name="btn_send">Enviar</string>
+    <string name="btn_create">Crear</string>
+    <string name="btn_join">Unirse</string>
+    <string name="btn_enable">Activar</string>
+    <string name="btn_accept">Aceptar</string>
+    <string name="btn_apply">Aplicar</string>
+    <string name="btn_close">Cerrar</string>
+    <string name="btn_go_back">Volver</string>
+    <string name="btn_go_connect">Ir a conectar</string>
+
+    <!-- MainActivity dialogs -->
+    <string name="bt_off_message">El Bluetooth se ha desactivado y la conexión con el dispositivo se ha perdido.</string>
+    <string name="device_disconnected">Dispositivo desconectado</string>
+    <string name="device_disconnected_msg">La conexión con el dispositivo BLE se ha perdido.</string>
+
+    <!-- BleConnectionService notification -->
+    <string name="notif_ble_channel_name">Conexión BLE</string>
+    <string name="notif_ble_channel_desc">Mantiene la conexión activa con el nodo A3MESH</string>
+    <string name="notif_connected_title">A3MESH conectado</string>
+    <string name="notif_connected_text">Conexión LoRa activa en segundo plano</string>
+
+    <!-- System messages stored in chat -->
+    <string name="msg_group_created">Grupo creado</string>
+    <string name="msg_group_joined">Te has unido al grupo</string>
+
+    <!-- ChatActivity -->
+    <string name="no_device_title">Sin dispositivo conectado</string>
+    <string name="no_device_msg">No hay ningún nodo A3MESH conectado. Conéctate a uno para poder enviar mensajes.</string>
+
+    <!-- Device info labels -->
+    <string name="info_node_id">ID del Nodo</string>
+    <string name="info_battery">Batería (%)</string>
+    <string name="info_fw_ver">Versión FW</string>
+    <string name="info_uptime">Tiempo encendido</string>
+    <string name="info_frequency">Frecuencia (MHz)</string>
+    <string name="info_sf">Factor de Dispersión</string>
+    <string name="info_neighbors">Vecinos activos</string>
+    <string name="info_firmware">Firmware</string>
+    <string name="info_bandwidth">Ancho de Banda</string>
+    <string name="info_cr">Tasa de Codificación</string>
+    <string name="info_tx_power">Potencia TX (dBm)</string>
+    <string name="info_channel">Canal</string>
+
+    <!-- Legacy -->
+    <string name="disconnected">Desconectado</string>
+</resources>

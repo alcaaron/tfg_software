@@ -17,6 +17,7 @@ import com.punchthrough.blestarterappandroid.ble.ConnectionEventListener
 import com.punchthrough.blestarterappandroid.ui.ConnectBottomSheet
 import com.punchthrough.blestarterappandroid.ble.ConnectionManager
 import com.punchthrough.blestarterappandroid.ble.isNotifiable
+import com.punchthrough.blestarterappandroid.R
 import com.punchthrough.blestarterappandroid.databinding.ActivityMainBinding
 import java.util.UUID
 
@@ -33,9 +34,9 @@ class MainActivity : AppCompatActivity() {
                 bleViewModel.connectedDevice.value != null
             ) {
                 MaterialAlertDialogBuilder(this@MainActivity)
-                    .setTitle("Bluetooth desactivado")
-                    .setMessage("El Bluetooth se ha desactivado y la conexión con el dispositivo se ha perdido.")
-                    .setPositiveButton("Aceptar", null)
+                    .setTitle(getString(R.string.bt_disabled_title))
+                    .setMessage(getString(R.string.bt_off_message))
+                    .setPositiveButton(getString(R.string.btn_accept), null)
                     .show()
             }
         }
@@ -69,9 +70,9 @@ class MainActivity : AppCompatActivity() {
                 if (wasConnected) {
                     runOnUiThread {
                         MaterialAlertDialogBuilder(this@MainActivity)
-                            .setTitle("Dispositivo desconectado")
-                            .setMessage("La conexión con el dispositivo BLE se ha perdido.")
-                            .setPositiveButton("Aceptar", null)
+                            .setTitle(getString(R.string.device_disconnected))
+                            .setMessage(getString(R.string.device_disconnected_msg))
+                            .setPositiveButton(getString(R.string.btn_accept), null)
                             .show()
                     }
                 }
@@ -184,6 +185,10 @@ class MainActivity : AppCompatActivity() {
             }
         }
         return nodes
+    }
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LocaleHelper.wrap(newBase, LocaleHelper.getSavedLocale(newBase)))
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

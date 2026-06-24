@@ -3,6 +3,7 @@ package com.punchthrough.blestarterappandroid
 import android.annotation.SuppressLint
 import android.app.Application
 import android.bluetooth.BluetoothDevice
+import com.punchthrough.blestarterappandroid.R
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -28,7 +29,7 @@ data class NeighborNode(val nodeId: String, val rssi: String, val t: String)
 
 private val BLE_WRITE_UUID = UUID.fromString("6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
 
-class BleViewModel(app: Application) : AndroidViewModel(app) {
+class BleViewModel(private val app: Application) : AndroidViewModel(app) {
 
     companion object {
         const val PUBLIC_CHANNEL_ADDRESS = 0
@@ -47,7 +48,7 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
     private val _connectedDevice = MutableLiveData<BluetoothDevice?>(null)
     val connectedDevice: LiveData<BluetoothDevice?> = _connectedDevice
 
-    private val _connectionStatus = MutableLiveData<String>("Desconectado")
+    private val _connectionStatus = MutableLiveData<String>(app.getString(R.string.disconnected_status))
     val connectionStatus: LiveData<String> = _connectionStatus
 
     private val _incomingMessage = MutableLiveData<Message>()
@@ -74,14 +75,14 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
     @SuppressLint("MissingPermission")
     fun onDeviceConnected(device: BluetoothDevice) {
         _connectedDevice.postValue(device)
-        _connectionStatus.postValue("Conectado a ${device.name ?: device.address}")
+        _connectionStatus.postValue(app.getString(R.string.connected_to, device.name ?: device.address))
         reprovisionAllKeys()
         sendAtCommand("AT+NEIGHBORS?\r\n")
     }
 
     fun onDeviceDisconnected() {
         _connectedDevice.postValue(null)
-        _connectionStatus.postValue("Desconectado")
+        _connectionStatus.postValue(app.getString(R.string.disconnected_status))
         _deviceInfo.postValue(emptyMap())
         _neighbors.postValue(emptyList())
     }
@@ -302,7 +303,7 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch(Dispatchers.IO) {
             messageDao.insert(Message(
                 contactAddress = groupId,
-                content = "Grupo creado",
+                content = app.getString(R.string.msg_group_created),
                 timestamp = System.currentTimeMillis(),
                 isOutgoing = true
             ))
@@ -316,7 +317,7 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch(Dispatchers.IO) {
             messageDao.insert(Message(
                 contactAddress = groupId,
-                content = "Te has unido al grupo",
+                content = app.getString(R.string.msg_group_joined),
                 timestamp = System.currentTimeMillis(),
                 isOutgoing = false
             ))

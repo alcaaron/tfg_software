@@ -25,6 +25,7 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.punchthrough.blestarterappandroid.BleViewModel
+import com.punchthrough.blestarterappandroid.R
 import com.punchthrough.blestarterappandroid.ScanResultAdapter
 import com.punchthrough.blestarterappandroid.ble.ConnectionManager
 import com.punchthrough.blestarterappandroid.databinding.BottomSheetConnectBinding
@@ -61,7 +62,7 @@ class ConnectBottomSheet : BottomSheetDialogFragment() {
         if (permissions.values.all { it }) tryStartScan()
         else Toast.makeText(
             requireContext(),
-            "Se necesitan permisos Bluetooth para escanear",
+            getString(R.string.bt_permission_toast),
             Toast.LENGTH_LONG
         ).show()
     }

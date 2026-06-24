@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Bottom navigation tabs -->
+    <string name="tab_chats">Xats</string>
+    <string name="tab_contacts">Contactes</string>
+    <string name="tab_device">Dispositiu</string>
+    <string name="tab_settings">Config.</string>
+
+    <!-- Toolbar titles -->
+    <string name="toolbar_contacts">Contactes</string>
+    <string name="toolbar_device">Dispositiu</string>
+    <string name="toolbar_settings">Configuració</string>
+
+    <!-- Connect bottom sheet -->
+    <string name="connect_title">Connecta el teu node A3MESH</string>
+    <string name="connect_desc">Necessites un node LoRa per enviar i rebre missatges. Cerca els dispositius disponibles al teu voltant.</string>
+    <string name="bt_disabled_hint">El Bluetooth està desactivat. Activa\'l per cercar dispositius.</string>
+    <string name="btn_enable_bt">Activa el Bluetooth</string>
+    <string name="btn_scan">Cerca dispositius</string>
+    <string name="scanning">Cercant…</string>
+    <string name="scanning_devices">Cercant dispositius A3MESH_Node…</string>
+
+    <!-- Chats -->
+    <string name="empty_chats">Encara no hi ha converses.\nConnecta un dispositiu i envia un missatge.</string>
+    <string name="create_group">Crear grup</string>
+    <string name="join_group">Unir-se a grup</string>
+    <string name="direct_message">Missatge directe</string>
+    <string name="public_channel">Canal Públic</string>
+    <string name="public_channel_subtitle">Sense xifratge · Canal obert</string>
+    <string name="you_prefix">Tu: </string>
+    <string name="group_default">Grup</string>
+    <string name="node_label">Node %1$s</string>
+    <string name="node_hex_label">Node 0x%1$s</string>
+    <string name="delete_chat_title">Elimina el xat</string>
+    <string name="delete_chat_confirm">Voleu eliminar la conversa amb %1$s?</string>
+    <string name="new_message_title">Nou missatge</string>
+    <string name="write_message_toast">Escriu un missatge</string>
+    <string name="invalid_address">Adreça hex no vàlida (ex: AABBCCDD)</string>
+    <string name="group_name_hint">Nom del grup</string>
+    <string name="share_code_msg">Comparteix aquest codi amb els altres nodes:</string>
+    <string name="group_created_title">Grup creat: %1$s</string>
+    <string name="go_to_chat">Ves al xat</string>
+    <string name="scan_qr">Escanejar codi QR</string>
+    <string name="enter_manually">Introdueix el codi manualment</string>
+    <string name="enter_group_code_title">Introdueix el codi del grup</string>
+    <string name="invalid_group_code">Codi de grup no vàlid</string>
+    <string name="joined_group">Unit a \"%1$s\"</string>
+    <string name="qr_prompt">Escaneja el codi QR del grup</string>
+
+    <!-- Contacts -->
+    <string name="neighbors">Veïns</string>
+    <string name="refresh_button_label">↻ Actualitzar</string>
+    <string name="no_neighbors">Cap veí detectat. Prem Actualitzar.</string>
+    <string name="contacts_section">Contactes</string>
+    <string name="no_contacts">Sense contactes.\nPrem + per afegir-ne un.</string>
+    <string name="cd_add_contact">Afegir contacte</string>
+    <string name="add_contact_title">Afegir contacte</string>
+    <string name="name_input_hint">Nom</string>
+    <string name="hex_error">Ha de tenir exactament 8 caràcters hex</string>
+    <string name="delete_contact_title">Elimina el contacte</string>
+    <string name="delete_contact_confirm">Voleu eliminar %1$s?</string>
+    <string name="edit_contact_title">Edita el contacte</string>
+    <string name="sender_send">Envia missatge</string>
+    <string name="sender_add_contact">Afegir com a contacte</string>
+
+    <!-- Device -->
+    <string name="no_device">Cap dispositiu connectat</string>
+    <string name="connected_status">Connectat</string>
+    <string name="connected_to">Connectat a %1$s</string>
+    <string name="disconnected_status">Desconnectat</string>
+    <string name="disconnect">Desconnectar</string>
+    <string name="bt_permission_toast">Cal permís Bluetooth per cercar</string>
+    <string name="bt_disabled_title">Bluetooth desactivat</string>
+    <string name="bt_disabled_msg">Activa el Bluetooth per cercar nodes A3MESH.</string>
+    <string name="available_devices">Dispositius disponibles</string>
+
+    <!-- Settings -->
+    <string name="language">Idioma</string>
+    <string name="dark_mode">Mode fosc</string>
+    <string name="advanced_settings">Configuració avançada</string>
+    <string name="no_name">Sense nom</string>
+    <string name="last_seen_prefix">Vist: </string>
+    <string name="never_seen">Mai vist</string>
+    <string name="edit_name_title">Edita el nom</string>
+    <string name="name_hint">El teu nom</string>
+
+    <!-- LoRa config dialog -->
+    <string name="lora_error">Alguna cosa ha anat malament. Error %1$s.</string>
+
+    <!-- Common buttons -->
+    <string name="btn_save">Desa</string>
+    <string name="btn_cancel">Cancel·la</string>
+    <string name="btn_delete">Elimina</string>
+    <string name="btn_send">Envia</string>
+    <string name="btn_create">Crea</string>
+    <string name="btn_join">Unir-se</string>
+    <string name="btn_enable">Activa</string>
+    <string name="btn_accept">Accepta</string>
+    <string name="btn_apply">Aplica</string>
+    <string name="btn_close">Tanca</string>
+    <string name="btn_go_back">Torna</string>
+    <string name="btn_go_connect">Ves a connectar</string>
+
+    <!-- MainActivity dialogs -->
+    <string name="bt_off_message">El Bluetooth s\'ha desactivat i s\'ha perdut la connexió amb el dispositiu.</string>
+    <string name="device_disconnected">Dispositiu desconnectat</string>
+    <string name="device_disconnected_msg">S\'ha perdut la connexió amb el dispositiu BLE.</string>
+
+    <!-- BleConnectionService notification -->
+    <string name="notif_ble_channel_name">Connexió BLE</string>
+    <string name="notif_ble_channel_desc">Manté la connexió activa amb el node A3MESH</string>
+    <string name="notif_connected_title">A3MESH connectat</string>
+    <string name="notif_connected_text">Connexió LoRa activa en segon pla</string>
+
+    <!-- System messages stored in chat -->
+    <string name="msg_group_created">Grup creat</string>
+    <string name="msg_group_joined">T\'has unit al grup</string>
+
+    <!-- ChatActivity -->
+    <string name="no_device_title">Sense dispositiu connectat</string>
+    <string name="no_device_msg">No hi ha cap node A3MESH connectat. Connecta\'n un per poder enviar missatges.</string>
+
+    <!-- Device info labels -->
+    <string name="info_node_id">ID del Node</string>
+    <string name="info_battery">Bateria (%)</string>
+    <string name="info_fw_ver">Versió FW</string>
+    <string name="info_uptime">Temps encès</string>
+    <string name="info_frequency">Freqüència (MHz)</string>
+    <string name="info_sf">Factor d\'Expansió</string>
+    <string name="info_neighbors">Veïns actius</string>
+    <string name="info_firmware">Firmware</string>
+    <string name="info_bandwidth">Ample de Banda</string>
+    <string name="info_cr">Taxa de Codificació</string>
+    <string name="info_tx_power">Potència TX (dBm)</string>
+    <string name="info_channel">Canal</string>
+
+    <!-- Legacy -->
+    <string name="disconnected">Desconnectat</string>
+</resources>

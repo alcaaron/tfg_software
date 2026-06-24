@@ -15,7 +15,7 @@ class NeighborsAdapter : ListAdapter<NeighborNode, NeighborsAdapter.ViewHolder>(
 
     class ViewHolder(itemView: android.view.View) : RecyclerView.ViewHolder(itemView) {
         fun bind(node: NeighborNode, onClick: ((NeighborNode) -> Unit)?) {
-            itemView.findViewById<TextView>(R.id.neighborNodeId).text = "Nodo ${node.nodeId}"
+            itemView.findViewById<TextView>(R.id.neighborNodeId).text = itemView.context.getString(R.string.node_label, node.nodeId.uppercase())
             itemView.findViewById<TextView>(R.id.neighborRssi).text = "RSSI: ${node.rssi} dBm"
             itemView.findViewById<TextView>(R.id.neighborT).text = "T: ${node.t}"
             itemView.setOnClickListener { onClick?.invoke(node) }

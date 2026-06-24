@@ -1,21 +1,135 @@
-<!--
-  ~ Copyright 2024 Punch Through Design LLC
-  ~
-  ~ Licensed under the Apache License, Version 2.0 (the "License");
-  ~ you may not use this file except in compliance with the License.
-  ~ You may obtain a copy of the License at
-  ~
-  ~     http://www.apache.org/licenses/LICENSE-2.0
-  ~
-  ~ Unless required by applicable law or agreed to in writing, software
-  ~ distributed under the License is distributed on an "AS IS" BASIS,
-  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  ~ See the License for the specific language governing permissions and
-  ~ limitations under the License.
-  -->
-
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">A3MESH Messenger</string>
+
+    <!-- Bottom navigation tabs -->
+    <string name="tab_chats">Chats</string>
+    <string name="tab_contacts">Contacts</string>
+    <string name="tab_device">Device</string>
+    <string name="tab_settings">Settings</string>
+
+    <!-- Toolbar titles -->
+    <string name="toolbar_contacts">Contacts</string>
+    <string name="toolbar_device">Device</string>
+    <string name="toolbar_settings">Settings</string>
+
+    <!-- Connect bottom sheet -->
+    <string name="connect_title">Connect your A3MESH node</string>
+    <string name="connect_desc">You need a LoRa node to send and receive messages. Search for nearby devices.</string>
+    <string name="bt_disabled_hint">Bluetooth is disabled. Enable it to search for devices.</string>
+    <string name="btn_enable_bt">Enable Bluetooth</string>
+    <string name="btn_scan">Search devices</string>
+    <string name="scanning">Searching…</string>
+    <string name="scanning_devices">Searching for A3MESH_Node…</string>
+
+    <!-- Chats -->
+    <string name="empty_chats">No conversations yet.\nConnect a device and send a message.</string>
+    <string name="create_group">Create group</string>
+    <string name="join_group">Join group</string>
+    <string name="direct_message">Direct message</string>
+    <string name="public_channel">Public Channel</string>
+    <string name="public_channel_subtitle">No encryption · Open channel</string>
+    <string name="you_prefix">You: </string>
+    <string name="group_default">Group</string>
+    <string name="node_label">Node %1$s</string>
+    <string name="node_hex_label">Node 0x%1$s</string>
+    <string name="delete_chat_title">Delete chat</string>
+    <string name="delete_chat_confirm">Delete the conversation with %1$s?</string>
+    <string name="new_message_title">New message</string>
+    <string name="write_message_toast">Write a message</string>
+    <string name="invalid_address">Invalid hex address (e.g. AABBCCDD)</string>
+    <string name="group_name_hint">Group name</string>
+    <string name="share_code_msg">Share this code with the other nodes:</string>
+    <string name="group_created_title">Group created: %1$s</string>
+    <string name="go_to_chat">Go to chat</string>
+    <string name="scan_qr">Scan QR code</string>
+    <string name="enter_manually">Enter code manually</string>
+    <string name="enter_group_code_title">Enter group code</string>
+    <string name="invalid_group_code">Invalid group code</string>
+    <string name="joined_group">Joined \"%1$s\"</string>
+    <string name="qr_prompt">Scan the group QR code</string>
+
+    <!-- Contacts -->
+    <string name="neighbors">Neighbors</string>
+    <string name="refresh_button_label">↻ Refresh</string>
+    <string name="no_neighbors">No neighbors detected. Tap Refresh.</string>
+    <string name="contacts_section">Contacts</string>
+    <string name="no_contacts">No contacts.\nTap + to add one.</string>
+    <string name="cd_add_contact">Add contact</string>
+    <string name="add_contact_title">Add contact</string>
+    <string name="name_input_hint">Name</string>
+    <string name="hex_error">Must be exactly 8 hex characters</string>
+    <string name="delete_contact_title">Delete contact</string>
+    <string name="delete_contact_confirm">Delete %1$s?</string>
+    <string name="edit_contact_title">Edit contact</string>
+    <string name="sender_send">Send message</string>
+    <string name="sender_add_contact">Add as contact</string>
+
+    <!-- Device -->
+    <string name="no_device">No device connected</string>
+    <string name="connected_status">Connected</string>
+    <string name="connected_to">Connected to %1$s</string>
+    <string name="disconnected_status">Disconnected</string>
+    <string name="disconnect">Disconnect</string>
+    <string name="bt_permission_toast">Bluetooth permissions are needed to scan</string>
+    <string name="bt_disabled_title">Bluetooth disabled</string>
+    <string name="bt_disabled_msg">Enable Bluetooth to search for A3MESH nodes.</string>
+    <string name="available_devices">Available devices</string>
+
+    <!-- Settings -->
+    <string name="language">Language</string>
+    <string name="dark_mode">Dark mode</string>
+    <string name="advanced_settings">Advanced Settings</string>
+    <string name="no_name">No name</string>
+    <string name="last_seen_prefix">Seen: </string>
+    <string name="never_seen">Never seen</string>
+    <string name="edit_name_title">Edit name</string>
+    <string name="name_hint">Your name</string>
+    <string name="lang_english">English</string>
+    <string name="lang_spanish">Español</string>
+    <string name="lang_catalan">Català</string>
+
+    <!-- LoRa config dialog -->
+    <string name="lora_settings_title">Advanced LoRa Settings</string>
+    <string name="lora_sf">Spreading Factor</string>
+    <string name="lora_bw">Bandwidth (kHz)</string>
+    <string name="lora_cr">Coding Rate</string>
+    <string name="lora_error">Something went wrong. Error %1$s.</string>
+
+    <!-- Common buttons -->
+    <string name="btn_save">Save</string>
+    <string name="btn_cancel">Cancel</string>
+    <string name="btn_delete">Delete</string>
+    <string name="btn_send">Send</string>
+    <string name="btn_create">Create</string>
+    <string name="btn_join">Join</string>
+    <string name="btn_enable">Enable</string>
+    <string name="btn_accept">Accept</string>
+    <string name="btn_apply">Apply</string>
+    <string name="btn_close">Close</string>
+    <string name="btn_go_back">Go back</string>
+    <string name="btn_go_connect">Connect</string>
+
+    <!-- MainActivity dialogs -->
+    <string name="bt_off_message">Bluetooth was disabled and the connection with the device was lost.</string>
+    <string name="device_disconnected">Device disconnected</string>
+    <string name="device_disconnected_msg">The BLE device connection was lost.</string>
+
+    <!-- BleConnectionService notification -->
+    <string name="notif_ble_channel_name">BLE Connection</string>
+    <string name="notif_ble_channel_desc">Keeps the connection active with the A3MESH node</string>
+    <string name="notif_connected_title">A3MESH connected</string>
+    <string name="notif_connected_text">LoRa connection active in background</string>
+
+    <!-- System messages stored in chat -->
+    <string name="msg_group_created">Group created</string>
+    <string name="msg_group_joined">You have joined the group</string>
+
+    <!-- ChatActivity -->
+    <string name="no_device_title">No device connected</string>
+    <string name="no_device_msg">No A3MESH node is connected. Connect one to be able to send messages.</string>
+
+    <!-- Legacy / permissions -->
     <string name="ble_playground">A3MESH BLE Messenger</string>
     <string name="location_permission_required">Location Permission Required</string>
     <string name="location_permission_rationale">Starting from Android 6, the system requires apps to be granted location access in order to scan for BLE devices.\n\nYour location is never used aside from enabling the app to perform BLE scans.</string>
@@ -26,11 +140,25 @@
     <string name="cannot_launch_app_settings">Unable to launch app settings, please navigate to app settings manually</string>
     <string name="app_settings">App Settings</string>
     <string name="quit">Quit</string>
+    <!-- Device info labels -->
+    <string name="info_node_id">Node ID</string>
+    <string name="info_battery">Battery (%)</string>
+    <string name="info_fw_ver">FW Version</string>
+    <string name="info_uptime">Uptime</string>
+    <string name="info_frequency">Frequency (MHz)</string>
+    <string name="info_sf">Spreading Factor</string>
+    <string name="info_neighbors">Active neighbors</string>
+    <string name="info_firmware">Firmware</string>
+    <string name="info_bandwidth">Bandwidth</string>
+    <string name="info_cr">Coding Rate</string>
+    <string name="info_tx_power">TX Power (dBm)</string>
+    <string name="info_channel">Channel</string>
+
     <string name="disconnected">Disconnected</string>
     <string name="disconnected_or_unable_to_connect_to_device">Disconnected or unable to connect to %1$s.</string>
     <string name="ok">OK</string>
-    <string name="refresh_button_label">Actualizar</string>
-    
+    <string name="refresh_button_label_old">Refresh</string>
+
     <string-array name="target_addresses">
         <item>1</item>
         <item>2</item>

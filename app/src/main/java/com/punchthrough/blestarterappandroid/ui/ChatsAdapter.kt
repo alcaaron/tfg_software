@@ -8,6 +8,7 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.punchthrough.blestarterappandroid.BleViewModel
+import com.punchthrough.blestarterappandroid.R
 import com.punchthrough.blestarterappandroid.data.model.Contact
 import com.punchthrough.blestarterappandroid.data.model.Message
 import com.punchthrough.blestarterappandroid.databinding.ItemChatBinding
@@ -36,39 +37,40 @@ class ChatsAdapter(
 
             when {
                 item.isPinned -> {
-                    binding.contactName.text = "Canal Público"
+                    binding.contactName.text = binding.root.context.getString(R.string.public_channel)
                     binding.avatarText.text = "#"
                     binding.avatarText.backgroundTintList =
                         ColorStateList.valueOf(Color.parseColor("#66BB6A"))
                     binding.messageTime.visibility = android.view.View.GONE
                     binding.pinIcon.visibility = android.view.View.VISIBLE
                     binding.lastMessage.text = if (item.lastMessage.timestamp == 0L) {
-                        "Sin cifrado · Canal abierto"
+                        binding.root.context.getString(R.string.public_channel_subtitle)
                     } else {
-                        val prefix = if (item.lastMessage.isOutgoing) "Tú: " else ""
+                        val prefix = if (item.lastMessage.isOutgoing) binding.root.context.getString(R.string.you_prefix) else ""
                         "$prefix${item.lastMessage.content}"
                     }
                 }
                 item.isGroup -> {
-                    val name = item.groupName?.takeIf { it.isNotBlank() } ?: "Grupo"
+                    val name = item.groupName?.takeIf { it.isNotBlank() } ?: binding.root.context.getString(R.string.group_default)
                     binding.contactName.text = name
                     binding.avatarText.text = "#"
                     binding.avatarText.backgroundTintList =
                         ColorStateList.valueOf(deriveAvatarColor(address))
-                    val prefix = if (item.lastMessage.isOutgoing) "Tú: " else ""
+                    val prefix = if (item.lastMessage.isOutgoing) binding.root.context.getString(R.string.you_prefix) else ""
                     binding.lastMessage.text = "$prefix${item.lastMessage.content}"
                     binding.pinIcon.visibility = android.view.View.GONE
                     binding.messageTime.visibility = android.view.View.VISIBLE
                     binding.messageTime.text = formatTime(item.lastMessage.timestamp)
                 }
                 else -> {
+                    val ctx = binding.root.context
                     val displayName = item.contact?.name?.takeIf { it.isNotBlank() }
-                        ?: "Nodo ${"%08x".format(address).uppercase()}"
+                        ?: ctx.getString(R.string.node_label, "%08X".format(address))
                     binding.contactName.text = displayName
                     binding.avatarText.text = displayName.first().uppercaseChar().toString()
                     binding.avatarText.backgroundTintList =
                         ColorStateList.valueOf(deriveAvatarColor(address))
-                    val prefix = if (item.lastMessage.isOutgoing) "Tú: " else ""
+                    val prefix = if (item.lastMessage.isOutgoing) ctx.getString(R.string.you_prefix) else ""
                     binding.lastMessage.text = "$prefix${item.lastMessage.content}"
                     binding.pinIcon.visibility = android.view.View.GONE
                     binding.messageTime.visibility = android.view.View.VISIBLE

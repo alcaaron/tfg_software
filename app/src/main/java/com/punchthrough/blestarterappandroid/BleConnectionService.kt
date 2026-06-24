@@ -26,10 +26,10 @@ class BleConnectionService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Conexión BLE",
+                getString(R.string.notif_ble_channel_name),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Mantiene la conexión activa con el nodo A3MESH"
+                description = getString(R.string.notif_ble_channel_desc)
                 setShowBadge(false)
             }
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
@@ -44,8 +44,8 @@ class BleConnectionService : Service() {
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_device)
-            .setContentTitle("A3MESH conectado")
-            .setContentText("Conexión LoRa activa en segundo plano")
+            .setContentTitle(getString(R.string.notif_connected_title))
+            .setContentText(getString(R.string.notif_connected_text))
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)

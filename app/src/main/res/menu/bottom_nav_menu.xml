@@ -19,21 +19,21 @@
     <item
         android:id="@+id/chatsFragment"
         android:icon="@drawable/ic_chats"
-        android:title="Chats" />
+        android:title="@string/tab_chats" />
 
     <item
         android:id="@+id/contactsFragment"
         android:icon="@drawable/ic_contacts"
-        android:title="Contactos" />
+        android:title="@string/tab_contacts" />
 
     <item
         android:id="@+id/deviceFragment"
         android:icon="@drawable/ic_device"
-        android:title="Dispositivo" />
+        android:title="@string/tab_device" />
 
     <item
         android:id="@+id/settingsFragment"
         android:icon="@drawable/ic_settings"
-        android:title="Config." />
+        android:title="@string/tab_settings" />
 
 </menu>

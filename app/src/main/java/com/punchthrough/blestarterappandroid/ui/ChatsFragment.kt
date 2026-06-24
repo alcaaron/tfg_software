@@ -54,10 +54,10 @@ class ChatsFragment : Fragment() {
         closeFabMenu()
         val address = chatItem.lastMessage.contactAddress
         val contactName = when {
-            chatItem.isPinned -> "Canal Público"
-            chatItem.isGroup -> chatItem.groupName?.takeIf { it.isNotBlank() } ?: "Grupo"
+            chatItem.isPinned -> getString(R.string.public_channel)
+            chatItem.isGroup -> chatItem.groupName?.takeIf { it.isNotBlank() } ?: getString(R.string.group_default)
             else -> chatItem.contact?.name?.takeIf { it.isNotBlank() }
-                ?: "Nodo ${"%08x".format(address).uppercase()}"
+                ?: getString(R.string.node_label, "%08x".format(address).uppercase())
         }
         startActivity(
             Intent(requireContext(), ChatActivity::class.java).apply {
@@ -149,17 +149,17 @@ class ChatsFragment : Fragment() {
                 val item = adapter.currentList[position]
                 val address = item.lastMessage.contactAddress
                 val label = when {
-                    item.isGroup -> item.groupName?.takeIf { it.isNotBlank() } ?: "Grupo"
+                    item.isGroup -> item.groupName?.takeIf { it.isNotBlank() } ?: getString(R.string.group_default)
                     else -> item.contact?.name?.takeIf { it.isNotBlank() }
-                        ?: "Nodo ${"%08x".format(address).uppercase()}"
+                        ?: getString(R.string.node_label, "%08x".format(address).uppercase())
                 }
                 MaterialAlertDialogBuilder(requireContext())
-                    .setTitle("Eliminar chat")
-                    .setMessage("¿Eliminar la conversación con $label?")
-                    .setPositiveButton("Eliminar") { _, _ ->
+                    .setTitle(getString(R.string.delete_chat_title))
+                    .setMessage(getString(R.string.delete_chat_confirm, label))
+                    .setPositiveButton(getString(R.string.btn_delete)) { _, _ ->
                         bleViewModel.deleteChat(address, item.isGroup)
                     }
-                    .setNegativeButton("Cancelar") { _, _ ->
+                    .setNegativeButton(getString(R.string.btn_cancel)) { _, _ ->
                         adapter.notifyItemChanged(position)
                     }
                     .setOnCancelListener {
@@ -252,10 +252,10 @@ class ChatsFragment : Fragment() {
         val messageInput = dialogView.findViewById<TextInputEditText>(R.id.messageEditText)
 
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Nuevo mensaje")
+            .setTitle(getString(R.string.new_message_title))
             .setView(dialogView)
-            .setPositiveButton("Enviar", null)
-            .setNegativeButton("Cancelar", null)
+            .setPositiveButton(getString(R.string.btn_send), null)
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .create()
             .also { dialog ->
                 dialog.setOnShowListener {
@@ -266,10 +266,10 @@ class ChatsFragment : Fragment() {
                         val text = messageInput.text.toString().trim()
                         when {
                             address == null || hexText.isEmpty() ->
-                                addressLayout.error = "Dirección hex inválida (ej: AABBCCDD)"
+                                addressLayout.error = getString(R.string.invalid_address)
                             text.isEmpty() -> {
                                 addressLayout.error = null
-                                Toast.makeText(requireContext(), "Escribe un mensaje", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(requireContext(), getString(R.string.write_message_toast), Toast.LENGTH_SHORT).show()
                             }
                             else -> {
                                 addressLayout.error = null
@@ -277,7 +277,7 @@ class ChatsFragment : Fragment() {
                                 bleViewModel.sendMessage(address, text)
                                 val name = bleViewModel.allContacts.value
                                     ?.find { it.address == address }?.name?.takeIf { it.isNotBlank() }
-                                    ?: "Nodo ${"%08x".format(address).uppercase()}"
+                                    ?: getString(R.string.node_label, "%08X".format(address))
                                 openChat(address, name)
                             }
                         }
@@ -290,20 +290,20 @@ class ChatsFragment : Fragment() {
     // ── Create group ──────────────────────────────────────────────────────────
 
     private fun showCreateGroupDialog() {
-        val editText = EditText(requireContext()).apply { hint = "Nombre del grupo" }
+        val editText = EditText(requireContext()).apply { hint = getString(R.string.group_name_hint) }
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Crear grupo")
+            .setTitle(getString(R.string.create_group))
             .setView(LinearLayout(requireContext()).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(48, 16, 48, 0)
                 addView(editText)
             })
-            .setPositiveButton("Crear") { _, _ ->
-                val name = editText.text.toString().trim().ifBlank { "Grupo" }
+            .setPositiveButton(getString(R.string.btn_create)) { _, _ ->
+                val name = editText.text.toString().trim().ifBlank { getString(R.string.group_default) }
                 val groupId = bleViewModel.createGroup(name)
                 showGroupQrDialog(groupId, name)
             }
-            .setNegativeButton("Cancelar", null)
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 
@@ -329,7 +329,7 @@ class ChatsFragment : Fragment() {
             })
         }
         layout.addView(TextView(requireContext()).apply {
-            text = "Comparte este código con los otros nodos:"
+            text = getString(R.string.share_code_msg)
             setPadding(0, 16, 0, 8)
             textSize = 13f
         })
@@ -340,12 +340,12 @@ class ChatsFragment : Fragment() {
         })
 
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Grupo creado: $name")
+            .setTitle(getString(R.string.group_created_title, name))
             .setView(layout)
-            .setPositiveButton("Ir al chat") { _, _ ->
+            .setPositiveButton(getString(R.string.go_to_chat)) { _, _ ->
                 openChat(groupId, name)
             }
-            .setNegativeButton("Cerrar") { _, _ ->
+            .setNegativeButton(getString(R.string.btn_close)) { _, _ ->
                 openChat(groupId, name)
             }
             .show()
@@ -355,21 +355,21 @@ class ChatsFragment : Fragment() {
 
     private fun showJoinGroupOptions() {
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Unirse a grupo")
-            .setItems(arrayOf("Escanear código QR", "Introducir código manualmente")) { _, which ->
+            .setTitle(getString(R.string.join_group))
+            .setItems(arrayOf(getString(R.string.scan_qr), getString(R.string.enter_manually))) { _, which ->
                 when (which) {
                     0 -> launchQrScanner()
                     1 -> showJoinByCodeDialog()
                 }
             }
-            .setNegativeButton("Cancelar", null)
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 
     private fun launchQrScanner() {
         val options = ScanOptions().apply {
             setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-            setPrompt("Escanea el código QR del grupo")
+            setPrompt(getString(R.string.qr_prompt))
             setBeepEnabled(false)
             setBarcodeImageEnabled(false)
         }
@@ -381,28 +381,28 @@ class ChatsFragment : Fragment() {
             hint = "a3g:GGGGGGGG:KKKK...KKK:nombre"
         }
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Introducir código de grupo")
+            .setTitle(getString(R.string.enter_group_code_title))
             .setView(LinearLayout(requireContext()).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(48, 16, 48, 0)
                 addView(editText)
             })
-            .setPositiveButton("Unirse") { _, _ ->
+            .setPositiveButton(getString(R.string.btn_join)) { _, _ ->
                 handleGroupCode(editText.text.toString().trim())
             }
-            .setNegativeButton("Cancelar", null)
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 
     private fun handleGroupCode(code: String) {
         val parsed = bleViewModel.parseGroupCode(code)
         if (parsed == null) {
-            Toast.makeText(requireContext(), "Código de grupo inválido", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), getString(R.string.invalid_group_code), Toast.LENGTH_SHORT).show()
             return
         }
         val (groupId, key, name) = parsed
         bleViewModel.joinGroup(groupId, name, key)
-        Toast.makeText(requireContext(), "Unido a \"$name\"", Toast.LENGTH_SHORT).show()
+        Toast.makeText(requireContext(), getString(R.string.joined_group, name), Toast.LENGTH_SHORT).show()
         openChat(groupId, name)
     }
 

@@ -44,14 +44,14 @@ class ContactsFragment : Fragment() {
             startActivity(
                 Intent(requireContext(), ChatActivity::class.java).apply {
                     putExtra(ChatActivity.EXTRA_CONTACT_ADDRESS, contact.address)
-                    putExtra(ChatActivity.EXTRA_CONTACT_NAME, contact.name.ifBlank { "Nodo ${"%08x".format(contact.address).uppercase()}" })
+                    putExtra(ChatActivity.EXTRA_CONTACT_NAME, contact.name.ifBlank { getString(R.string.node_label, "%08X".format(contact.address)) })
                 }
             )
         },
         onLongClick = { contact ->
             AlertDialog.Builder(requireContext())
-                .setTitle(contact.name.ifBlank { "Nodo ${"%08x".format(contact.address).uppercase()}" })
-                .setItems(arrayOf("Editar nombre", "Eliminar")) { _, which ->
+                .setTitle(contact.name.ifBlank { getString(R.string.node_label, "%08X".format(contact.address)) })
+                .setItems(arrayOf(getString(R.string.edit_name_title), getString(R.string.btn_delete))) { _, which ->
                     when (which) {
                         0 -> showEditDialog(contact.address, contact.name)
                         1 -> bleViewModel.deleteContact(contact)
@@ -67,7 +67,7 @@ class ContactsFragment : Fragment() {
                 startActivity(
                     Intent(requireContext(), ChatActivity::class.java).apply {
                         putExtra(ChatActivity.EXTRA_CONTACT_ADDRESS, address)
-                        putExtra(ChatActivity.EXTRA_CONTACT_NAME, "Nodo ${node.nodeId.uppercase()}")
+                        putExtra(ChatActivity.EXTRA_CONTACT_NAME, getString(R.string.node_label, node.nodeId.uppercase()))
                     }
                 )
             }
@@ -173,10 +173,10 @@ class ContactsFragment : Fragment() {
         val addressInput = dialogView.findViewById<TextInputEditText>(R.id.addressEditText)
 
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Añadir contacto")
+            .setTitle(getString(R.string.add_contact_title))
             .setView(dialogView)
-            .setPositiveButton("Guardar", null)
-            .setNegativeButton("Cancelar", null)
+            .setPositiveButton(getString(R.string.btn_save), null)
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .create()
             .also { dialog ->
                 dialog.setOnShowListener {
@@ -186,7 +186,7 @@ class ContactsFragment : Fragment() {
                             .removePrefix("0x").removePrefix("0X")
                         val address = hexText.toLongOrNull(16)?.toInt()
                         if (hexText.length != 8 || address == null) {
-                            addressLayout.error = "Debe tener exactamente 8 caracteres hex"
+                            addressLayout.error = getString(R.string.hex_error)
                         } else {
                             addressLayout.error = null
                             dialog.dismiss()
@@ -208,15 +208,15 @@ class ContactsFragment : Fragment() {
                 val position = viewHolder.bindingAdapterPosition
                 if (position < 0) return
                 val contact = contactsAdapter.currentList[position]
-                val label = contact.name.ifBlank { "Nodo ${"%08x".format(contact.address).uppercase()}" }
+                val label = contact.name.ifBlank { getString(R.string.node_label, "%08X".format(contact.address)) }
 
                 MaterialAlertDialogBuilder(requireContext())
-                    .setTitle("Eliminar contacto")
-                    .setMessage("¿Eliminar a $label?")
-                    .setPositiveButton("Eliminar") { _, _ ->
+                    .setTitle(getString(R.string.delete_contact_title))
+                    .setMessage(getString(R.string.delete_contact_confirm, label))
+                    .setPositiveButton(getString(R.string.btn_delete)) { _, _ ->
                         bleViewModel.deleteContact(contact)
                     }
-                    .setNegativeButton("Cancelar") { _, _ ->
+                    .setNegativeButton(getString(R.string.btn_cancel)) { _, _ ->
                         contactsAdapter.notifyItemChanged(position)
                     }
                     .setOnCancelListener {
@@ -256,7 +256,7 @@ class ContactsFragment : Fragment() {
     private fun showEditDialog(address: Int, currentName: String) {
         val nameField = EditText(requireContext()).apply {
             setText(currentName)
-            hint = "Nombre"
+            hint = getString(R.string.name_input_hint)
         }
         val layout = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
@@ -264,12 +264,12 @@ class ContactsFragment : Fragment() {
             addView(nameField)
         }
         AlertDialog.Builder(requireContext())
-            .setTitle("Editar contacto")
+            .setTitle(getString(R.string.edit_contact_title))
             .setView(layout)
-            .setPositiveButton("Guardar") { _, _ ->
+            .setPositiveButton(getString(R.string.btn_save)) { _, _ ->
                 bleViewModel.saveContact(address, nameField.text.toString().trim())
             }
-            .setNegativeButton("Cancelar", null)
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 
